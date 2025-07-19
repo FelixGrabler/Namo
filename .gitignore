@@ -42,4 +42,5 @@ coverage
 docker-compose.override.yml
 docker-compose.yml
 
-app/backend/__pycache__/
+# Python
+__pycache__/
