@@ -19,15 +19,23 @@ def load_names_from_csv(file_path: str) -> list:
         return names
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             reader = csv.DictReader(file)
             for row in reader:
                 name = Name(
-                    source=row['source'],
-                    name=row['name'],
-                    gender=row.get('gender', '').lower() if row.get('gender') else None,
-                    rank=int(row['rank']) if row.get('rank') and row['rank'].strip() else None,
-                    count=int(row['count']) if row.get('count') and row['count'].strip() else None
+                    source=row["source"],
+                    name=row["name"],
+                    gender=row.get("gender", "").lower() if row.get("gender") else None,
+                    rank=(
+                        int(row["rank"])
+                        if row.get("rank") and row["rank"].strip()
+                        else None
+                    ),
+                    count=(
+                        int(row["count"])
+                        if row.get("count") and row["count"].strip()
+                        else None
+                    ),
                 )
                 names.append(name)
         print(f"Loaded {len(names)} names from {file_path}")
@@ -88,7 +96,7 @@ def init_db(force_reload: bool = False):
         # Load names from CSV or use sample data
         csv_path = "data/names.csv"
         names = load_names_from_csv(csv_path)
-        
+
         if not names:
             print("No CSV data found, using sample data...")
             names = get_sample_names()
@@ -108,5 +116,6 @@ def init_db(force_reload: bool = False):
 
 if __name__ == "__main__":
     import sys
+
     force_reload = "--force" in sys.argv
     init_db(force_reload=force_reload)
