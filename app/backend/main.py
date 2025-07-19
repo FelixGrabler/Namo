@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from models.database import engine, SessionLocal, Base
 from routes import auth, names, votes
 from auth.auth_utils import verify_token
+from init_db import init_db
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -15,9 +16,12 @@ Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup - Initialize database with data
+    print("Starting up: Initializing database...")
+    init_db()
     yield
     # Shutdown
+    print("Shutting down...")
 
 
 app = FastAPI(
