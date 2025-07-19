@@ -40,3 +40,6 @@ coverage
 # Docker
 .dockerignore
 docker-compose.override.yml
+docker-compose.yml
+
+app/backend/__pycache__/

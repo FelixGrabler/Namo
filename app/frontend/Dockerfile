@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as build-stage
+FROM node:20-alpine as build-stage
 
 WORKDIR /app/frontend
 
@@ -19,7 +19,7 @@ RUN npm run build
 FROM nginx:alpine as production-stage
 
 # Copy built files from build stage
-COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY --from=build-stage /app/frontend/dist /usr/share/nginx/html
 
 # Copy nginx configuration (optional, using default for now)
 # COPY nginx.conf /etc/nginx/nginx.conf
