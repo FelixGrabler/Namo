@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 # User schemas
@@ -43,6 +43,15 @@ class NameCreate(NameBase):
 
 class NameResponse(NameBase):
     id: int
+
+    class Config:
+        from_attributes = True
+
+
+class NameInfoResponse(BaseModel):
+    id: int
+    name: str
+    info: Dict[str, Any]
 
     class Config:
         from_attributes = True

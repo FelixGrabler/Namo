@@ -5,7 +5,9 @@ from typing import List, Optional
 
 from auth.auth_utils import get_db, get_current_user
 from models.database import Name, User
-from schemas.schemas import NameResponse, NameCreate
+from schemas.schemas import NameResponse, NameCreate, NameInfoResponse
+from app.backend.utils.wikionary_fetcher import extract_name_info
+from utils.error_utils import handle_error, log_info, log_warning
 
 router = APIRouter()
 
@@ -17,21 +19,36 @@ def get_random_name(
     current_user: User = Depends(get_current_user),
 ):
     """Get a random name, optionally filtered by gender."""
-    query = db.query(Name)
+    try:
+        log_info(f"Getting random name with gender filter: {gender}", "get_random_name")
 
-    # Filter by gender if provided
-    if gender and gender.lower() in ["m", "f"]:
-        query = query.filter(Name.gender == gender.lower())
+        query = db.query(Name)
 
-    # Get random name
-    name = query.order_by(func.random()).first()
+        # Filter by gender if provided
+        if gender and gender.lower() in ["m", "f"]:
+            query = query.filter(Name.gender == gender.lower())
+            log_info(f"Applied gender filter: {gender.lower()}", "get_random_name")
 
-    if not name:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No names found"
+        # Get random name
+        name = query.order_by(func.random()).first()
+
+        if not name:
+            log_warning("No names found in database", "get_random_name")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No names found"
+            )
+
+        log_info(
+            f"Retrieved random name: {name.name} ({name.gender})", "get_random_name"
         )
+        return name
 
-    return name
+    except HTTPException:
+        # Re-raise HTTP exceptions (these are expected errors)
+        raise
+    except Exception as e:
+        # Handle unexpected errors with full logging and Telegram notification
+        handle_error(e, "Error retrieving random name", send_telegram=True)
 
 
 @router.get("/", response_model=List[NameResponse])
@@ -84,3 +101,32 @@ def get_name(
             status_code=status.HTTP_404_NOT_FOUND, detail="Name not found"
         )
     return name
+
+
+@router.get("/info/{name}", response_model=NameInfoResponse)
+def get_name_info(
+    name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get detailed information about a name."""
+    name_entry = db.query(Name).filter(Name.name == name).first()
+    if not name_entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Name not found"
+        )
+
+    # Get additional info from Wiktionary
+    wiktionary_info = extract_name_info(name)
+
+    if not wiktionary_info:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Name information not available from Wiktionary",
+        )
+
+    return NameInfoResponse(
+        id=name_entry.id,
+        name=name_entry.name,
+        info=wiktionary_info,
+    )
