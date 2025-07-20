@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -27,6 +25,7 @@ services:
       - "8000:8000"
     volumes:
       - ./app/backend:/app/backend
+      - ./logs:/app/backend/logs # Persist logs outside container
 
   frontend:
     build:
@@ -36,7 +35,10 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      - "5173:5173"
+    volumes:
+      - ./app/frontend:/app/frontend
+      - /app/frontend/node_modules
 
 volumes:
   db-data:
