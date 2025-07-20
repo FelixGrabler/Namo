@@ -1,5 +1,5 @@
-# Build stage
-FROM node:20-alpine as build-stage
+# Development stage
+FROM node:20-alpine
 
 WORKDIR /app/frontend
 
@@ -12,19 +12,8 @@ RUN npm ci
 # Copy source code
 COPY app/frontend/ .
 
-# Build the application
-RUN npm run build
+# Expose port for Vite dev server
+EXPOSE 5173
 
-# Production stage
-FROM nginx:alpine as production-stage
-
-# Copy built files from build stage
-COPY --from=build-stage /app/frontend/dist /usr/share/nginx/html
-
-# Copy nginx configuration (optional, using default for now)
-# COPY nginx.conf /etc/nginx/nginx.conf
-
-# Expose port 80
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# Start the development server with hot reloading
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
