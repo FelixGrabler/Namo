@@ -90,9 +90,9 @@ def get_db():
 
 
 # Include routers
-app.include_router(auth.router, prefix="/auth", tags=["authentication"])
-app.include_router(names.router, prefix="/names", tags=["names"])
-app.include_router(votes.router, prefix="/votes", tags=["votes"])
+app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
+app.include_router(names.router, prefix="/api/names", tags=["names"])
+app.include_router(votes.router, prefix="/api/votes", tags=["votes"])
 
 
 @app.get("/")

@@ -1,5 +1,3 @@
-src/services/voteService.ts
-
 import axios from 'axios'
 import type { VoteCreate } from '@/types'
 

@@ -2,9 +2,9 @@ import axios from 'axios'
 import type { NameResponse } from '@/types'
 
 export const useNameService = () => {
-  const getRandomNames = async (limit = 10): Promise<NameResponse[]> => {
+  const getRandomNames = async (n = 10): Promise<NameResponse[]> => {
     const response = await axios.get('/api/names/random', {
-      params: { limit }
+      params: { n }
     })
     return response.data
   }
