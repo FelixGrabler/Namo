@@ -49,7 +49,6 @@ class NameResponse(NameBase):
 
 
 class NameInfoResponse(BaseModel):
-    id: int
     name: str
     info: Dict[str, Any]
 

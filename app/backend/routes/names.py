@@ -70,82 +70,85 @@ def get_random_names(
     return selected
 
 
-@router.get("/", response_model=List[NameResponse])
-def get_names(
-    skip: int = 0,
-    limit: int = 100,
-    gender: Optional[str] = None,
+@router.get("/ordered", response_model=List[NameResponse])
+def get_ordered_names(
+    direction: str = Query("popular", regex="^(popular|unpopular)$"),
+    after: Optional[int] = None,  # name_id
+    limit: int = Query(1, ge=1, le=100),
     source: Optional[str] = None,
+    gender: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get list of names with optional filters."""
-    query = db.query(Name)
+    """
+    Return names ordered by count (popular/unpopular), filtered by source/gender,
+    excluding names already voted on by the user.
+    Supports keyset pagination via `after` (name.id).
+    """
+
+    # Validate direction
+    asc = direction == "unpopular"
+
+    # Base query: exclude already voted names
+    voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
+    query = db.query(Name).filter(~Name.id.in_(voted_subq))
 
     # Apply filters
-    if gender and gender.lower() in ["m", "f"]:
-        query = query.filter(Name.gender == gender.lower())
-
     if source:
         query = query.filter(Name.source.ilike(f"%{source}%"))
 
-    names = query.offset(skip).limit(limit).all()
-    return names
+    if gender and gender.lower() in ["m", "f"]:
+        query = query.filter(Name.gender == gender.lower())
 
+    # If `after` is given, use keyset pagination
+    if after:
+        anchor = db.query(Name).filter(Name.id == after).first()
+        if not anchor:
+            raise HTTPException(status_code=400, detail="Invalid `after` value")
 
-@router.post("/", response_model=NameResponse)
-def create_name(
-    name: NameCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Create a new name entry."""
-    db_name = Name(**name.dict())
-    db.add(db_name)
-    db.commit()
-    db.refresh(db_name)
-    return db_name
+        anchor_count = anchor.count
+        anchor_id = anchor.id
 
+        if asc:
+            query = query.filter(
+                (Name.count > anchor_count)
+                | ((Name.count == anchor_count) & (Name.id > anchor_id))
+            )
+        else:
+            query = query.filter(
+                (Name.count < anchor_count)
+                | ((Name.count == anchor_count) & (Name.id > anchor_id))
+            )
 
-@router.get("/{name_id}", response_model=NameResponse)
-def get_name(
-    name_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get a specific name by ID."""
-    name = db.query(Name).filter(Name.id == name_id).first()
-    if not name:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Name not found"
-        )
-    return name
+    # Apply ordering
+    if asc:
+        query = query.order_by(Name.count.asc(), Name.id.asc())
+    else:
+        query = query.order_by(Name.count.desc(), Name.id.asc())
+
+    # Limit results
+    results = query.limit(limit).all()
+
+    if not results:
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+    return results
 
 
 @router.get("/info/{name}", response_model=NameInfoResponse)
 def get_name_info(
     name: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Get detailed information about a name."""
-    name_entry = db.query(Name).filter(Name.name == name).first()
-    if not name_entry:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Name not found"
-        )
-
-    # Get additional info from Wiktionary
     wiktionary_info = extract_name_info(name)
 
     if not wiktionary_info:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=status.HTTP_204_NO_CONTENT,
             detail="Name information not available from Wiktionary",
         )
 
     return NameInfoResponse(
-        id=name_entry.id,
-        name=name_entry.name,
+        name=name,
         info=wiktionary_info,
     )
