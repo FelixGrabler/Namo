@@ -17,7 +17,7 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
 import { useNameBuffer } from '@/stores/useNameBuffer'
-import { useVoteService } from '@/services/voteService'
+import { useVoteService } from '@/api/voteService'
 
 import NameCard from '@/components/NameCard.vue'
 import VoteButtons from '@/components/VoteButtons.vue'

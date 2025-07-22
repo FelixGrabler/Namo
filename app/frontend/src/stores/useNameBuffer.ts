@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useNameService } from '@/services/nameService'
+import { useNameService } from '@/api/nameService'
 import type { NameResponse } from '@/types'
 
 export const useNameBuffer = defineStore('nameBuffer', () => {

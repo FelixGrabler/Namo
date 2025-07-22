@@ -39,7 +39,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
-import { useAuthService } from '@/services/authService'
+import { useAuthService } from '@/api/authService'
 
 const username = ref('')
 const password = ref('')
