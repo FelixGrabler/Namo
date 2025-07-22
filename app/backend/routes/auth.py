@@ -35,9 +35,8 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": new_user.username}, expires_delta=access_token_expires
+        data={"username": new_user.username, "user_id": new_user.id}
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
@@ -56,9 +55,8 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
         )
 
     # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": db_user.username}, expires_delta=access_token_expires
+        data={"username": db_user.username, "user_id": db_user.id}
     )
 
     return {"access_token": access_token, "token_type": "bearer"}

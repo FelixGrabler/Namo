@@ -8,7 +8,7 @@
       @dislike="handleVote(false)"
     />
 
-    <div v-else class="text-center text-gray-500">Keine Namen mehr verfügbar.</div>
+    <div v-else class="text-center text-gray-500">Loading...</div>
   </div>
 </template>
 

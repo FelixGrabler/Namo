@@ -39,11 +39,25 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create a JWT access token."""
     to_encode = data.copy()
+    now = datetime.now(timezone.utc)
+
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    # Add standard JWT claims and custom data
+    print(f"Current time (now): {now.isoformat()}")
+    print(f"Expiration time (exp): {expire.isoformat()}")
+    to_encode.update(
+        {
+            "sub": data.get("username"),  # subject (username)
+            "user_id": data.get("user_id"),  # user ID
+            "iat": int(now.timestamp()),  # issued at timestamp
+            "exp": int(expire.timestamp()),  # expiration timestamp
+        }
+    )
+
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -59,11 +73,35 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: Optional[str] = payload.get("sub")
-        if username is None:
+        user_id: Optional[int] = payload.get("user_id")
+        exp_timestamp: Optional[int] = payload.get("exp")
+
+        print(f"Decoded token 'iat' (now): {datetime.now(timezone.utc).isoformat()}")
+        if exp_timestamp:
+            print(f"Decoded token 'exp': {datetime.fromtimestamp(exp_timestamp, tz=timezone.utc).isoformat()}")
+
+        if username is None or user_id is None:
             raise credentials_exception
-        return username
-    except JWTError:
-        raise credentials_exception
+
+        # Calculate and print how long the token still lasts
+        if exp_timestamp:
+            now = datetime.now(timezone.utc)
+            exp_datetime = datetime.fromtimestamp(exp_timestamp, tz=timezone.utc)
+            time_remaining = exp_datetime - now
+
+            if time_remaining.total_seconds() > 0:
+                days = time_remaining.days
+                hours, remainder = divmod(time_remaining.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                print(
+                    f"Token for user '{username}' (ID: {user_id}) expires in: {days} days, {hours} hours, {minutes} minutes, {seconds} seconds"
+                )
+            else:
+                print(f"Token for user '{username}' (ID: {user_id}) has expired")
+
+        return {"username": username, "user_id": user_id}
+    except JWTError as exc:
+        raise credentials_exception from exc
 
 
 def get_db():
@@ -76,10 +114,13 @@ def get_db():
 
 
 def get_current_user(
-    username: str = Depends(verify_token), db: Session = Depends(get_db)
+    token_data: dict = Depends(verify_token), db: Session = Depends(get_db)
 ) -> User:
     """Get current authenticated user."""
-    user = db.query(User).filter(User.username == username).first()
+    username = token_data["username"]
+    user_id = token_data["user_id"]
+
+    user = db.query(User).filter(User.username == username, User.id == user_id).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
