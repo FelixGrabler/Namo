@@ -40,7 +40,7 @@ Base.metadata.create_all(bind=engine)
 async def lifespan(app: FastAPI):
     # Startup - Initialize database with data
     APP_LOGGER.info("Starting up: Initializing database...")
-    init_db()
+    init_db(force_reload=os.getenv("FORCE_DB_RELOAD", "false").lower() == "true")
 
     # Send startup notification
     try:

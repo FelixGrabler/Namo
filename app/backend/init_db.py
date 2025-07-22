@@ -94,7 +94,7 @@ def init_db(force_reload: bool = False):
             db.add(user)
 
         # Load names from CSV or use sample data
-        csv_path = "data/names.csv"
+        csv_path = "data/Austria.csv"
         names = load_names_from_csv(csv_path)
 
         if not names:

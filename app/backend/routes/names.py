@@ -1,54 +1,73 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List, Optional
+import random
 
 from auth.auth_utils import get_db, get_current_user
-from models.database import Name, User
+from models.database import Name, User, Vote
 from schemas.schemas import NameResponse, NameCreate, NameInfoResponse
-from app.backend.utils.wikionary_fetcher import extract_name_info
+from utils.wikionary_fetcher import extract_name_info
 from utils.error_utils import handle_error, log_info, log_warning
 
 router = APIRouter()
 
 
-@router.get("/random", response_model=NameResponse)
-def get_random_name(
+@router.get("/random", response_model=List[NameResponse])
+def get_random_names(
+    n: int = Query(1, ge=1, le=100),
     gender: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get a random name, optionally filtered by gender."""
-    try:
-        log_info(f"Getting random name with gender filter: {gender}", "get_random_name")
+    """Get up to n weighted random names the user hasn't voted on yet."""
+    log_info(
+        f"Requesting {n} random names, gender={gender}, user={current_user.username}",
+        "get_random_names",
+    )
 
-        query = db.query(Name)
+    # Get name IDs the user has already voted on
+    voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
 
-        # Filter by gender if provided
-        if gender and gender.lower() in ["m", "f"]:
-            query = query.filter(Name.gender == gender.lower())
-            log_info(f"Applied gender filter: {gender.lower()}", "get_random_name")
+    # Base query
+    query = db.query(Name).filter(
+        ~Name.id.in_(voted_subq), Name.count > 0  # ensure weights are valid
+    )
 
-        # Get random name
-        name = query.order_by(func.random()).first()
+    # Apply gender filter if valid
+    if gender and gender.lower() in {"m", "f"}:
+        query = query.filter(Name.gender == gender.lower())
 
-        if not name:
-            log_warning("No names found in database", "get_random_name")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="No names found"
-            )
+    # Pull all eligible names into memory (OK up to ~10k rows)
+    eligible_names = query.all()
 
-        log_info(
-            f"Retrieved random name: {name.name} ({name.gender})", "get_random_name"
+    if not eligible_names:
+        log_warning("No names available for user to vote on", "get_random_names")
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+    if len(eligible_names) <= n:
+        selected = eligible_names
+    else:
+        # Sample without replacement using weights
+        weights = [name.count for name in eligible_names]
+        selected = random.choices(
+            population=eligible_names,
+            weights=weights,
+            k=n * 2,  # oversample to avoid dupes
         )
-        return name
 
-    except HTTPException:
-        # Re-raise HTTP exceptions (these are expected errors)
-        raise
-    except Exception as e:
-        # Handle unexpected errors with full logging and Telegram notification
-        handle_error(e, "Error retrieving random name", send_telegram=True)
+        # Remove duplicates and trim to `n`
+        seen = set()
+        unique_selected = []
+        for name in selected:
+            if name.id not in seen:
+                unique_selected.append(name)
+                seen.add(name.id)
+            if len(unique_selected) == n:
+                break
+        selected = unique_selected
+
+    log_info(f"Returning {len(selected)} random names", "get_random_names")
+    return selected
 
 
 @router.get("/", response_model=List[NameResponse])
