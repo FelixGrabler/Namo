@@ -12,6 +12,14 @@
           >
             Vote
           </router-link>
+          <router-link
+            v-if="isAuthenticated"
+            to="/voted"
+            class="nav-link"
+            :class="{ active: $route.name === 'VotedNames' }"
+          >
+            Auswertung
+          </router-link>
           <button
             v-if="isAuthenticated"
             @click="logout"

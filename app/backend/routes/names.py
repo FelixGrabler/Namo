@@ -12,6 +12,7 @@ from utils.error_utils import handle_error, log_info, log_warning
 router = APIRouter()
 
 
+# GET /names/random?n=10&gender=m&exclude_voted=true
 @router.get("/random", response_model=List[NameResponse])
 def get_random_names(
     n: int = Query(1, ge=1, le=100),
@@ -71,6 +72,7 @@ def get_random_names(
     return selected
 
 
+# GET /names/ordered?direction=popular&after=123&limit=10&source=source_name&gender=m
 @router.get("/ordered", response_model=List[NameResponse])
 def get_ordered_names(
     direction: str = Query("popular", regex="^(popular|unpopular)$"),
@@ -136,6 +138,7 @@ def get_ordered_names(
     return results
 
 
+# GET /names/info/{name}
 @router.get("/info/{name}", response_model=NameInfoResponse)
 def get_name_info(
     name: str,

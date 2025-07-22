@@ -1,15 +1,28 @@
 export interface NameResponse {
   id: number
   name: string
-  country: string
-  gender: 'M' | 'F'
-  year: number
-  popularity: number
+  source: string  // Changed from country to match backend
+  gender: 'm' | 'f' | null  // Changed to lowercase and allow null
+  rank: number | null
+  count: number | null
 }
 
 export interface VoteCreate {
   name_id: number
-  vote_type: 'like' | 'dislike'
+  vote: boolean  // True = like, False = dislike
+}
+
+export interface VoteResponse {
+  id: number
+  name_id: number
+  vote: boolean
+}
+
+export interface VoteWithName {
+  id: number
+  name_id: number
+  vote: boolean
+  name: NameResponse
 }
 
 export interface LoginRequest {

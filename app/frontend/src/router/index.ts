@@ -1,11 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import VotingView from '@/views/VotingView.vue'
+import VotedNamesView from '@/views/VotedNamesView.vue'
 import LoginView from '@/views/LoginView.vue'
 import { useUserStore } from '@/stores/useUserStore'
 
 const routes = [
   { path: '/login', name: 'Login', component: LoginView },
   { path: '/vote', name: 'Vote', component: VotingView },
+  { path: '/voted', name: 'VotedNames', component: VotedNamesView },
   { path: '/', redirect: '/vote' },
 ]
 

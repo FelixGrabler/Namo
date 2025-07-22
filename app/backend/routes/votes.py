@@ -9,6 +9,7 @@ from schemas.schemas import VoteCreate, VoteResponse, VoteWithName
 router = APIRouter()
 
 
+# POST /votes/
 @router.post("/", response_model=VoteResponse)
 def create_or_update_vote(
     vote: VoteCreate,
@@ -39,6 +40,7 @@ def create_or_update_vote(
         return new_vote
 
 
+# GET /votes?vote=true&skip=0&limit=100
 @router.get("/", response_model=List[VoteWithName])
 def get_votes(
     vote: Optional[bool] = Query(None),
@@ -60,6 +62,7 @@ def get_votes(
     return query.offset(skip).limit(limit).all()
 
 
+# DELETE /votes/by-name/{name_id}
 @router.delete("/by-name/{name_id}")
 def delete_vote_by_name(
     name_id: int,
@@ -81,6 +84,7 @@ def delete_vote_by_name(
     return {"message": "Vote deleted successfully"}
 
 
+# GET /votes/compare?other_username=jessica
 @router.get("/compare", response_model=dict)
 def compare_votes(
     other_username: str,
