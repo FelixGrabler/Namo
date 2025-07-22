@@ -29,9 +29,6 @@ from utils.telegram_notifier import telegram_notifier
 # Load environment variables
 load_dotenv()
 
-# Setup logging
-setup_logging()
-
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
@@ -41,13 +38,6 @@ async def lifespan(app: FastAPI):
     # Startup - Initialize database with data
     APP_LOGGER.info("Starting up: Initializing database...")
     init_db(force_reload=os.getenv("FORCE_DB_RELOAD", "false").lower() == "true")
-
-    # Send startup notification
-    # try:
-    #     await telegram_notifier.send_startup_notification()
-    #     APP_LOGGER.info("Startup notification sent to Telegram")
-    # except Exception as e:
-    #     APP_LOGGER.error(f"Failed to send startup notification: {e}")
 
     yield
 

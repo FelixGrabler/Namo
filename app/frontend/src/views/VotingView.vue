@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col items-center justify-center h-screen p-4">
+  <div class="flex flex-col items-center justify-center h-full p-4">
     <NameCard v-if="currentName" :name="currentName" />
 
     <VoteButtons

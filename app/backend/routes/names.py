@@ -16,6 +16,7 @@ router = APIRouter()
 def get_random_names(
     n: int = Query(1, ge=1, le=100),
     gender: Optional[str] = None,
+    exclude_voted: bool = Query(True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -25,13 +26,13 @@ def get_random_names(
         "get_random_names",
     )
 
-    # Get name IDs the user has already voted on
-    voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
-
     # Base query
-    query = db.query(Name).filter(
-        ~Name.id.in_(voted_subq), Name.count > 0  # ensure weights are valid
-    )
+    query = db.query(Name)
+
+    # Exclude names the user has voted on if exclude_voted is True
+    if exclude_voted:
+        voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
+        query = query.filter(~Name.id.in_(voted_subq))
 
     # Apply gender filter if valid
     if gender and gender.lower() in {"m", "f"}:

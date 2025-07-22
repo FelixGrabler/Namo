@@ -47,8 +47,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     # Add standard JWT claims and custom data
-    print(f"Current time (now): {now.isoformat()}")
-    print(f"Expiration time (exp): {expire.isoformat()}")
     to_encode.update(
         {
             "sub": data.get("username"),  # subject (username)
@@ -76,28 +74,8 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         user_id: Optional[int] = payload.get("user_id")
         exp_timestamp: Optional[int] = payload.get("exp")
 
-        print(f"Decoded token 'iat' (now): {datetime.now(timezone.utc).isoformat()}")
-        if exp_timestamp:
-            print(f"Decoded token 'exp': {datetime.fromtimestamp(exp_timestamp, tz=timezone.utc).isoformat()}")
-
         if username is None or user_id is None:
             raise credentials_exception
-
-        # Calculate and print how long the token still lasts
-        if exp_timestamp:
-            now = datetime.now(timezone.utc)
-            exp_datetime = datetime.fromtimestamp(exp_timestamp, tz=timezone.utc)
-            time_remaining = exp_datetime - now
-
-            if time_remaining.total_seconds() > 0:
-                days = time_remaining.days
-                hours, remainder = divmod(time_remaining.seconds, 3600)
-                minutes, seconds = divmod(remainder, 60)
-                print(
-                    f"Token for user '{username}' (ID: {user_id}) expires in: {days} days, {hours} hours, {minutes} minutes, {seconds} seconds"
-                )
-            else:
-                print(f"Token for user '{username}' (ID: {user_id}) has expired")
 
         return {"username": username, "user_id": user_id}
     except JWTError as exc:

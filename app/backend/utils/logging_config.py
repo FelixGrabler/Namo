@@ -35,6 +35,10 @@ def setup_logging():
     # Error logger with rotation
     error_logger = logging.getLogger("namo.errors")
     error_logger.setLevel(logging.ERROR)
+    error_logger.propagate = False
+
+    # Clear existing handlers to prevent duplicates
+    error_logger.handlers.clear()
 
     error_handler = RotatingFileHandler(
         LOGS_DIR / "errors.log", maxBytes=MAX_LOG_SIZE, backupCount=BACKUP_COUNT
@@ -45,6 +49,10 @@ def setup_logging():
     # Request logger with rotation
     request_logger = logging.getLogger("namo.requests")
     request_logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+    request_logger.propagate = False
+
+    # Clear existing handlers to prevent duplicates
+    request_logger.handlers.clear()
 
     request_handler = RotatingFileHandler(
         LOGS_DIR / "requests.log", maxBytes=MAX_LOG_SIZE, backupCount=BACKUP_COUNT
@@ -55,6 +63,10 @@ def setup_logging():
     # General app logger with rotation
     app_logger = logging.getLogger("namo.app")
     app_logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+    app_logger.propagate = False
+
+    # Clear existing handlers to prevent duplicates
+    app_logger.handlers.clear()
 
     app_handler = RotatingFileHandler(
         LOGS_DIR / "app.log", maxBytes=MAX_LOG_SIZE, backupCount=BACKUP_COUNT
