@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import os
@@ -46,6 +47,7 @@ class Name(Base):
     gender = Column(String, nullable=True)  # 'm' or 'f'
     rank = Column(Integer, nullable=True)
     count = Column(Integer, nullable=True)
+    info = Column(JSONB, nullable=True)
 
     # Relationship with votes
     votes = relationship("Vote", back_populates="name")

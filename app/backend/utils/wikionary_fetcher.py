@@ -1,6 +1,5 @@
 import json
 import re
-
 import requests
 from bs4 import BeautifulSoup
 
@@ -18,7 +17,6 @@ CATEGORIES = [
 
 
 def clean_text(text):
-    # Entfernt [1], [2], [fehlende Quellen], usw.
     text = re.sub(r" ?\[ ?\d+ ?\]", "", text)
     text = re.sub(r" ?\[.*?Quellen.*?\]", "", text)
     return text.strip()
@@ -31,6 +29,7 @@ def extract_name_info(name):
         return None
 
     soup = BeautifulSoup(response.text, "html.parser")
+
     section = soup.find(
         "h3", id=lambda x: x and x.startswith("Substantiv,_") and "_Vorname" in x
     )
@@ -41,11 +40,15 @@ def extract_name_info(name):
     data = {}
 
     for cat in CATEGORIES:
-        # Spezialbehandlung: Aussprache = erster Audio-Link
         if cat == "Aussprache":
             audio = section.select_one("a[href$='.ogg']")
             if audio:
-                data["aussprache"] = "https:" + audio["href"]
+                data["aussprache_link"] = "https:" + audio["href"]
+
+            ipa = section.select_one("span.ipa")
+            if ipa:
+                data["ipa"] = ipa.text.strip()
+
             continue
 
         heading = section.find(
@@ -64,15 +67,14 @@ def extract_name_info(name):
                 entries = [e for e in entries if len(e.replace(".", "").strip()) > 2]
 
             if entries:
-                key = cat  # .lower().replace(" ", "_")
-                data[key] = "\n".join(entries)
+                data[cat] = "\n".join(entries)
 
     return data
 
 
 # Example
 if __name__ == "__main__":
-    result = extract_name_info("Johanna")
+    result = extract_name_info("Felix")
     if result:
-        print(f"Information for 'Johanna':")
+        print("Information for 'Felix':")
         print(json.dumps(result, ensure_ascii=False, indent=2))
