@@ -15,9 +15,10 @@ from schemas.schemas import UserCreate, UserResponse, UserLogin, Token
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=Token)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user."""
+    """Register a new user and return an access token."""
+
     # Check if user already exists
     db_user = db.query(User).filter(User.username == user.username).first()
     if db_user:
@@ -26,14 +27,20 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
             detail="Username already registered",
         )
 
-    # Create new user
+    # Hash password and create user
     hashed_password = get_password_hash(user.password)
-    db_user = User(username=user.username, password_hash=hashed_password)
-    db.add(db_user)
+    new_user = User(username=user.username, password_hash=hashed_password)
+    db.add(new_user)
     db.commit()
-    db.refresh(db_user)
+    db.refresh(new_user)
 
-    return db_user
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": new_user.username}, expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/login", response_model=Token)

@@ -43,11 +43,11 @@ async def lifespan(app: FastAPI):
     init_db(force_reload=os.getenv("FORCE_DB_RELOAD", "false").lower() == "true")
 
     # Send startup notification
-    try:
-        await telegram_notifier.send_startup_notification()
-        APP_LOGGER.info("Startup notification sent to Telegram")
-    except Exception as e:
-        APP_LOGGER.error(f"Failed to send startup notification: {e}")
+    # try:
+    #     await telegram_notifier.send_startup_notification()
+    #     APP_LOGGER.info("Startup notification sent to Telegram")
+    # except Exception as e:
+    #     APP_LOGGER.error(f"Failed to send startup notification: {e}")
 
     yield
 

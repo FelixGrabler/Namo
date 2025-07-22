@@ -68,7 +68,6 @@ class VoteCreate(VoteBase):
 
 class VoteResponse(VoteBase):
     id: int
-    user_id: int
 
     class Config:
         from_attributes = True
@@ -76,7 +75,6 @@ class VoteResponse(VoteBase):
 
 class VoteWithName(BaseModel):
     id: int
-    user_id: int
     name_id: int
     vote: bool
     name: NameResponse

@@ -144,7 +144,7 @@ def get_name_info(
 
     if not wiktionary_info:
         raise HTTPException(
-            status_code=status.HTTP_204_NO_CONTENT,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Name information not available from Wiktionary",
         )
 

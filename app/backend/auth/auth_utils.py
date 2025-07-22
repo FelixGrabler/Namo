@@ -10,7 +10,10 @@ import os
 from models.database import User, SessionLocal
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
+SECRET_KEY = os.getenv("SECRET_KEY", "default")
+if not SECRET_KEY or SECRET_KEY == "default":
+    raise RuntimeError("SECRET_KEY environment variable not set")
+
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(7 * 24 * 60))
