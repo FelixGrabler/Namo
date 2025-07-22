@@ -3,14 +3,14 @@ FROM node:20-alpine
 
 WORKDIR /app/frontend
 
-# Copy package files
-COPY app/frontend/package*.json ./
+# Copy package files for better Docker layer caching
+COPY app/frontend/package.json app/frontend/package-lock.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with optimized flags
+RUN npm ci --only=production=false --no-audit --no-fund --legacy-peer-deps
 
 # Copy source code
-COPY app/frontend/ .
+COPY app/frontend/ ./
 
 # Expose port for Vite dev server
 EXPOSE 5173
