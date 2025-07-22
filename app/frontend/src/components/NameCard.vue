@@ -10,6 +10,7 @@
 
 <script setup lang="ts">
 import type { NameResponse } from '@/types'
+import { computed } from 'vue'
 
 interface Props {
   name: NameResponse

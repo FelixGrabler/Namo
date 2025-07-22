@@ -36,7 +36,8 @@ onMounted(async () => {
   await nameBuffer.ensureBuffer()
 })
 
-const handleVote = (vote: boolean) => async () => {
+const handleVote = async (vote: boolean) => {
+  console.log('handleVote', vote)
   if (!currentName.value) return
 
   try {
