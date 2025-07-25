@@ -6,8 +6,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
-  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+  IMAGE_NAME_BACKEND: ghcr.io/felixgrabler/namo/backend
+  IMAGE_NAME_FRONTEND: ghcr.io/felixgrabler/namo/frontend
 
 jobs:
   build-and-deploy:
@@ -33,7 +33,7 @@ jobs:
           context: .
           file: ./app/backend/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
+          tags: ${{ env.IMAGE_NAME_BACKEND }}:latest
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
@@ -41,7 +41,7 @@ jobs:
           context: .
           file: ./app/frontend/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
+          tags: ${{ env.IMAGE_NAME_FRONTEND }}:latest
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
