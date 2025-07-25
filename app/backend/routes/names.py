@@ -12,18 +12,19 @@ from utils.error_utils import handle_error, log_info, log_warning
 router = APIRouter()
 
 
-# GET /names/random?n=10&gender=m&exclude_voted=true
+# GET /names/random?n=10&genders=male,female&sort_order=random&exclude_voted=true
 @router.get("/random", response_model=List[NameResponse])
 def get_random_names(
     n: int = Query(1, ge=1, le=100),
-    gender: Optional[str] = None,
+    genders: Optional[str] = None,
+    sort_order: Optional[str] = Query("random"),
     exclude_voted: bool = Query(True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get up to n weighted random names the user hasn't voted on yet."""
     log_info(
-        f"Requesting {n} random names, gender={gender}, user={current_user.username}",
+        f"Requesting {n} random names, genders={genders}, sort_order={sort_order}, user={current_user.username}",
         "get_random_names",
     )
 
@@ -36,8 +37,18 @@ def get_random_names(
         query = query.filter(~Name.id.in_(voted_subq))
 
     # Apply gender filter if valid
-    if gender and gender.lower() in {"m", "f"}:
-        query = query.filter(Name.gender == gender.lower())
+    if genders:
+        gender_list = [g.strip().lower() for g in genders.split(",")]
+        # Convert frontend gender names to database format
+        db_genders = []
+        for gender in gender_list:
+            if gender == "male":
+                db_genders.append("m")
+            elif gender == "female":
+                db_genders.append("f")
+
+        if db_genders:
+            query = query.filter(Name.gender.in_(db_genders))
 
     # Pull all eligible names into memory (OK up to ~10k rows)
     eligible_names = query.all()
@@ -46,27 +57,35 @@ def get_random_names(
         log_warning("No names available for user to vote on", "get_random_names")
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
 
-    if len(eligible_names) <= n:
-        selected = eligible_names
-    else:
-        # Sample without replacement using weights
-        weights = [name.count for name in eligible_names]
-        selected = random.choices(
-            population=eligible_names,
-            weights=weights,
-            k=n * 2,  # oversample to avoid dupes
-        )
+    # Apply sorting based on sort_order
+    if sort_order == "most_popular":
+        eligible_names.sort(key=lambda name: name.count, reverse=True)
+        selected = eligible_names[:n]
+    elif sort_order == "least_popular":
+        eligible_names.sort(key=lambda name: name.count)
+        selected = eligible_names[:n]
+    else:  # random (default)
+        if len(eligible_names) <= n:
+            selected = eligible_names
+        else:
+            # Sample without replacement using weights
+            weights = [name.count for name in eligible_names]
+            selected = random.choices(
+                population=eligible_names,
+                weights=weights,
+                k=n * 2,  # oversample to avoid dupes
+            )
 
-        # Remove duplicates and trim to `n`
-        seen = set()
-        unique_selected = []
-        for name in selected:
-            if name.id not in seen:
-                unique_selected.append(name)
-                seen.add(name.id)
-            if len(unique_selected) == n:
-                break
-        selected = unique_selected
+            # Remove duplicates and trim to `n`
+            seen = set()
+            unique_selected = []
+            for name in selected:
+                if name.id not in seen:
+                    unique_selected.append(name)
+                    seen.add(name.id)
+                if len(unique_selected) == n:
+                    break
+            selected = unique_selected
 
     log_info(f"Returning {len(selected)} random names", "get_random_names")
     return selected

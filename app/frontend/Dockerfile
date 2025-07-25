@@ -4,10 +4,10 @@ FROM node:20-alpine
 WORKDIR /app/frontend
 
 # Copy package files for better Docker layer caching
-COPY app/frontend/package.json app/frontend/package-lock.json ./
+COPY app/frontend/package.json ./
 
 # Install dependencies with optimized flags
-RUN npm ci --only=production=false --no-audit --no-fund --legacy-peer-deps
+RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 # Copy source code
 COPY app/frontend/ ./

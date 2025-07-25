@@ -3,7 +3,7 @@
     <NameCard v-if="currentName" :name="currentName" />
 
     <!-- Vote buttons positioned at bottom -->
-    <div class="fixed bottom-0 left-0 right-0 z-10">
+    <div class="vote-buttons-container">
       <VoteButtons
         v-if="currentName"
         @like="handleVote(true)"
@@ -97,5 +97,25 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
 </script>
 
 <style scoped>
-/* TODO */
+.vote-buttons-container {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 2rem;
+  z-index: 10;
+}
+
+/* Mobile adjustments - position above the mobile navigation */
+@media (max-width: 768px) {
+  .vote-buttons-container {
+    bottom: 4.5rem; /* Closer to mobile nav bar */
+  }
+}
+
+/* Desktop adjustments - closer to bottom but with some spacing */
+@media (min-width: 769px) {
+  .vote-buttons-container {
+    bottom: 0.75rem; /* Much closer to bottom */
+  }
+}
 </style>

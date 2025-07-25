@@ -21,7 +21,7 @@
             class="h-6 w-6 text-gray-700 cursor-pointer hover:text-gray-900"
             @click="playSound"
           />
-          <span v-if="name.info?.ipa" class="text-lg text-gray-700 font-mono">[ {{ name.info.ipa }} ]</span>
+          <span v-if="name.info?.ipa" class="text-lg text-gray-700 font-mono">[{{ name.info.ipa }}]</span>
         </div>
 
         <!-- Count and Rank -->

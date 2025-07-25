@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useNameService } from '@/api/nameService'
+import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import type { NameResponse } from '@/types'
 
 export const useNameBuffer = defineStore('nameBuffer', () => {
@@ -13,9 +14,13 @@ export const useNameBuffer = defineStore('nameBuffer', () => {
     if (buffer.value.length >= BUFFER_MIN) return
 
     const existingIds = new Set(buffer.value.map(n => n.id))
+    const preferencesStore = usePreferencesStore()
 
     try {
-      const names = await useNameService().getRandomNames(BUFFER_TARGET)
+      const names = await useNameService().getRandomNames(BUFFER_TARGET, {
+        sortOrder: preferencesStore.sortOrder,
+        genders: preferencesStore.selectedGenders
+      })
       for (const name of names) {
         if (!existingIds.has(name.id)) {
           buffer.value.push(name)
@@ -46,6 +51,12 @@ export const useNameBuffer = defineStore('nameBuffer', () => {
     return previousName.value !== null
   }
 
+  // Clear buffer when preferences change
+  const clearBuffer = () => {
+    buffer.value = []
+    previousName.value = null
+  }
+
   return {
     buffer,
     previousName,
@@ -53,5 +64,6 @@ export const useNameBuffer = defineStore('nameBuffer', () => {
     removeCurrentName,
     undoLastRemoval,
     canUndo,
+    clearBuffer,
   }
 })
