@@ -12,14 +12,28 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# Import read_secret from config
+from config import read_secret
 
-# Database URL
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:password@localhost:5432/namo"
-)
+
+# Database configuration from environment variables and secrets
+POSTGRES_USER = os.getenv("POSTGRES_USER", "namo_dev")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "namo_dev")
+DATABASE_HOST = os.getenv("DATABASE_HOST", "db")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+# Get password from Docker secrets based on environment
+if ENVIRONMENT == "production":
+    POSTGRES_PASSWORD = read_secret("prod_postgres_password") or os.getenv(
+        "POSTGRES_PASSWORD", "change_this_in_production"
+    )
+else:
+    POSTGRES_PASSWORD = read_secret("dev_postgres_password") or os.getenv(
+        "POSTGRES_PASSWORD", "dev_password_123"
+    )
+
+DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DATABASE_HOST}:5432/{POSTGRES_DB}"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

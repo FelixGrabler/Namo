@@ -1,0 +1,22 @@
+services:
+  db:
+    container_name: postgres_dev
+
+  backend:
+    build:
+      dockerfile: app/backend/Dockerfile.dev
+    container_name: api_dev
+    restart: on-failure
+    volumes:
+      - ./app/backend:/app/backend # Mount source code for hot reload
+      - ./logs:/app/backend/logs
+
+  frontend:
+    build:
+      dockerfile: app/frontend/Dockerfile.dev
+    container_name: web_dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./app/frontend:/app/frontend # Mount source code for hot reload
+      - /app/frontend/node_modules # Anonymous volume for node_modules

@@ -8,16 +8,22 @@ from sqlalchemy.orm import Session
 import os
 
 from models.database import User, SessionLocal
+from config import read_secret
 
-# Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "default")
-if not SECRET_KEY or SECRET_KEY == "default":
-    raise RuntimeError("SECRET_KEY environment variable not set")
+
+# Configuration from environment variables and secrets
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+if ENVIRONMENT == "production":
+    SECRET_KEY = read_secret("prod_secret_key") or os.getenv(
+        "SECRET_KEY", "change_this_in_production"
+    )
+else:
+    SECRET_KEY = read_secret("dev_secret_key") or os.getenv(
+        "SECRET_KEY", "dev_secret_key_not_for_production_use_only"
+    )
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(7 * 24 * 60))
-)  # Default: 7 days
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

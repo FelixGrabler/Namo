@@ -6,8 +6,10 @@ WORKDIR /app/backend
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
-    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy requirements first for better caching
 COPY app/backend/requirements.txt .
@@ -18,8 +20,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/backend/ .
 
-# Create logs directory
-RUN mkdir -p /app/backend/logs
+# Change ownership to the non-root user
+RUN chown -R appuser:appuser /app/backend
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8000

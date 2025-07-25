@@ -29,8 +29,9 @@ coverage
 
 *.tsbuildinfo
 
-# Environment files
-.env*
+# Docker secrets (keep example files)
+secrets/
+!secrets/*.example.txt
 
 # Database
 *.db
@@ -39,8 +40,12 @@ coverage
 
 # Docker
 .dockerignore
-docker-compose.override.yml
-docker-compose.yml
+
+# SSL certificates and secrets
+nginx/ssl/
+*.pem
+*.key
+*.crt
 
 # Python
 __pycache__/
