@@ -35,6 +35,7 @@ class NameBase(BaseModel):
     gender: Optional[str] = None
     rank: Optional[int] = None
     count: Optional[int] = None
+    info: Optional[Dict[str, Any]] = None
 
 
 class NameCreate(NameBase):

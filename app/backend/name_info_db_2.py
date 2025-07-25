@@ -16,21 +16,42 @@ def get_name_info(name: str) -> Optional[Dict[str, Any]]:
     try:
         return extract_name_info(name)
     except Exception as e:
-        ERROR_LOGGER.error(f"Failed to get info for name {name}: {str(e)}")
+        ERROR_LOGGER.error("Failed to get info for name %s: %s", name, str(e))
         return None
+
+
+def needs_info_update(name_record):
+    """Check if a name record needs info update"""
+    if name_record.info is None:
+        return True
+    if name_record.info == {}:
+        return True
+    # Check if info only contains 'ipa' key with value "…" (three dots)
+    if (
+        isinstance(name_record.info, dict)
+        and len(name_record.info) == 1
+        and "ipa" in name_record.info
+        and name_record.info["ipa"] == "…"
+    ):
+        return True
+    return False
 
 
 def update_name_info(limit_to_first: bool = True):
     db: Session = SessionLocal()
 
     try:
-        query = db.query(Name).filter(Name.info.is_(None)).order_by(Name.rank)
+        # Get all names and filter in Python since JSON filtering can be complex in SQLAlchemy
+        all_names = db.query(Name).order_by(Name.rank).all()
 
-        if limit_to_first:
-            names = query.limit(1).all()
+        # Filter names that need info update
+        names = [name for name in all_names if needs_info_update(name)]
+
+        log_info(f"Total {len(names)} names to process")
+
+        if limit_to_first and names:
+            names = names[:1]
             log_info("Processing only the first name as requested")
-        else:
-            names = query.all()
 
         if not names:
             log_info("No names found without info data")
@@ -61,7 +82,7 @@ def update_name_info(limit_to_first: bool = True):
                 break
 
     except Exception as e:
-        ERROR_LOGGER.error(f"Error during name info update: {str(e)}")
+        ERROR_LOGGER.error("Error during name info update: %s", str(e))
         db.rollback()
         raise
     finally:

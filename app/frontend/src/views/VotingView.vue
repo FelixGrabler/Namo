@@ -1,19 +1,27 @@
 <template>
-  <div class="flex flex-col items-center justify-center h-full p-4">
+  <div class="relative min-h-screen w-full overflow-hidden">
     <NameCard v-if="currentName" :name="currentName" />
 
-    <VoteButtons
-      v-if="currentName"
-      @like="handleVote(true)"
-      @dislike="handleVote(false)"
-    />
+    <!-- Vote buttons positioned at bottom -->
+    <div class="fixed bottom-0 left-0 right-0 z-10">
+      <VoteButtons
+        v-if="currentName"
+        @like="handleVote(true)"
+        @dislike="handleVote(false)"
+        @undo="handleUndo"
+        :canUndo="nameBuffer.canUndo()"
+        class="py-6"
+      />
+    </div>
 
-    <div v-else class="text-center text-gray-500">Loading...</div>
+    <div v-if="!currentName" class="flex items-center justify-center min-h-screen text-center text-gray-500 bg-gray-50">
+      Loading...
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
 import { useNameBuffer } from '@/stores/useNameBuffer'
@@ -34,6 +42,14 @@ onMounted(async () => {
     return
   }
   await nameBuffer.ensureBuffer()
+
+  // Add global keyboard listener
+  document.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  // Clean up keyboard listener
+  document.removeEventListener('keydown', handleGlobalKeydown)
 })
 
 const handleVote = async (vote: boolean) => {
@@ -49,6 +65,33 @@ const handleVote = async (vote: boolean) => {
       userStore.logout()
       router.push('/login')
     }
+  }
+}
+
+const handleUndo = () => {
+  console.log('handleUndo')
+  nameBuffer.undoLastRemoval()
+}
+
+const handleGlobalKeydown = (event: KeyboardEvent) => {
+  if (!currentName.value) return
+
+  switch (event.key) {
+    case 'ArrowLeft':
+      event.preventDefault()
+      handleVote(false) // dislike
+      break
+    case 'ArrowRight':
+      event.preventDefault()
+      handleVote(true) // like
+      break
+    case 'ArrowUp':
+    case 'Backspace':
+      event.preventDefault()
+      if (nameBuffer.canUndo()) {
+        handleUndo()
+      }
+      break
   }
 }
 </script>

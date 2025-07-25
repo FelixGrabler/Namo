@@ -31,7 +31,7 @@
       </div>
     </header>
 
-    <main class="main-content">
+    <main class="main-content" :class="mainContentClasses">
       <router-view />
     </main>
   </div>
@@ -48,6 +48,9 @@ const userStore = useUserStore()
 
 const isAuthenticated = computed(() => userStore.token !== null)
 const showHeader = computed(() => route.name !== 'Login')
+const mainContentClasses = computed(() => ({
+  'no-padding': route.name === 'Vote'
+}))
 
 const logout = () => {
   userStore.logout()
@@ -117,5 +120,9 @@ const logout = () => {
 
 .main-content {
   padding: 2rem;
+}
+
+.main-content.no-padding {
+  padding: 0;
 }
 </style>

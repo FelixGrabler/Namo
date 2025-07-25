@@ -54,6 +54,8 @@ def get_votes(
         db.query(Vote)
         .filter(Vote.user_id == current_user.id)
         .options(joinedload(Vote.name))
+        .join(Name)
+        .order_by(Name.name.asc())  # Order alphabetically by name
     )
 
     if vote is not None:

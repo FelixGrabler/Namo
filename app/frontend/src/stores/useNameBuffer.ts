@@ -5,6 +5,7 @@ import type { NameResponse } from '@/types'
 
 export const useNameBuffer = defineStore('nameBuffer', () => {
   const buffer = ref<NameResponse[]>([])
+  const previousName = ref<NameResponse | null>(null)
   const BUFFER_MIN = 5
   const BUFFER_TARGET = 10
 
@@ -27,12 +28,30 @@ export const useNameBuffer = defineStore('nameBuffer', () => {
   }
 
   const removeCurrentName = () => {
-    buffer.value.shift()
+    const currentName = buffer.value[0]
+    if (currentName) {
+      previousName.value = currentName
+      buffer.value.shift()
+    }
+  }
+
+  const undoLastRemoval = () => {
+    if (previousName.value) {
+      buffer.value.unshift(previousName.value)
+      previousName.value = null
+    }
+  }
+
+  const canUndo = () => {
+    return previousName.value !== null
   }
 
   return {
     buffer,
+    previousName,
     ensureBuffer,
     removeCurrentName,
+    undoLastRemoval,
+    canUndo,
   }
 })

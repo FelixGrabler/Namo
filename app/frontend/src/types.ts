@@ -5,6 +5,7 @@ export interface NameResponse {
   gender: 'm' | 'f' | null  // Changed to lowercase and allow null
   rank: number | null
   count: number | null
+  info?: { [key: string]: any } | null
 }
 
 export interface VoteCreate {
