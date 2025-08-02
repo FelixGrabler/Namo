@@ -29,8 +29,7 @@ from utils.telegram_notifier import telegram_notifier
 # Load environment variables
 load_dotenv()
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Note: Database tables will be created by init_db() during startup
 
 
 @asynccontextmanager

@@ -5,25 +5,18 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-import os
 
 from models.database import User, SessionLocal
-from config import read_secret
+from config import get_required_env, get_required_secret
 
 
 # Configuration from environment variables and secrets
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-if ENVIRONMENT == "production":
-    SECRET_KEY = read_secret("prod_secret_key") or os.getenv(
-        "SECRET_KEY", "change_this_in_production"
-    )
-else:
-    SECRET_KEY = read_secret("dev_secret_key") or os.getenv(
-        "SECRET_KEY", "dev_secret_key_not_for_production_use_only"
-    )
+SECRET_KEY = get_required_secret("secret_key")
 
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
+ALGORITHM = get_required_env("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    get_required_env("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")
+)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

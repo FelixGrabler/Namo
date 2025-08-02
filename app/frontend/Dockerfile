@@ -4,13 +4,13 @@ FROM node:20-alpine AS builder
 WORKDIR /app/frontend
 
 # Copy package files for better Docker layer caching
-COPY app/frontend/package.json ./
+COPY package.json ./
 
 # Install dependencies
 RUN npm install --no-audit --no-fund
 
 # Copy source code
-COPY app/frontend/ ./
+COPY . ./
 
 # Build the app
 RUN npm run build

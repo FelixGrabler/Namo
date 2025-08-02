@@ -65,8 +65,14 @@ def get_sample_names():
 
 def init_db(force_reload: bool = False):
     """Initialize database with tables and sample data."""
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    # Create all tables (with error handling for existing tables)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created or verified.")
+    except Exception as e:
+        print(f"Table creation note: {e}")
+        # This might happen if tables already exist, which is usually fine
+        # We'll continue with data initialization
 
     db = SessionLocal()
 

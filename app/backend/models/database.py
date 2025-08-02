@@ -11,27 +11,18 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-import os
 
-# Import read_secret from config
-from config import read_secret
+# Import helper functions from config
+from config import get_required_env, get_required_secret
 
 
 # Database configuration from environment variables and secrets
-POSTGRES_USER = os.getenv("POSTGRES_USER", "namo_dev")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "namo_dev")
-DATABASE_HOST = os.getenv("DATABASE_HOST", "db")
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+POSTGRES_USER = get_required_env("POSTGRES_USER")
+POSTGRES_DB = get_required_env("POSTGRES_DB")
+DATABASE_HOST = get_required_env("DATABASE_HOST")
 
-# Get password from Docker secrets based on environment
-if ENVIRONMENT == "production":
-    POSTGRES_PASSWORD = read_secret("prod_postgres_password") or os.getenv(
-        "POSTGRES_PASSWORD", "change_this_in_production"
-    )
-else:
-    POSTGRES_PASSWORD = read_secret("dev_postgres_password") or os.getenv(
-        "POSTGRES_PASSWORD", "dev_password_123"
-    )
+# Get password from Docker secrets
+POSTGRES_PASSWORD = get_required_secret("postgres_password")
 
 DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DATABASE_HOST}:5432/{POSTGRES_DB}"
 
