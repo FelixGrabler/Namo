@@ -21,8 +21,8 @@ FROM nginx:alpine
 # Copy built files
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
-# Copy custom nginx config
-COPY ../../nginx/nginx.conf /etc/nginx/nginx.conf
+# Copy custom nginx config - will be overridden by volume mount
+# COPY ../../nginx/nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 80
 
