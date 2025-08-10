@@ -94,3 +94,7 @@ secrets:
 
 volumes:
   db-data:
+
+networks:
+  grabler-network:
+    external: true
