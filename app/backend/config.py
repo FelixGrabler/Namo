@@ -104,9 +104,9 @@ class Settings(BaseSettings):
     def get_database_url(self) -> str:
         """Construct database URL using secrets"""
         password = self.get_postgres_password()
-        return (
-            f"postgresql://{self.postgres_user}:{password}@db:5432/{self.postgres_db}"
-        )
+        # Use environment-specific hostname
+        db_host = os.getenv("DB_HOST", "namo-db")
+        return f"postgresql://{self.postgres_user}:{password}@{db_host}:5432/{self.postgres_db}"
 
 
 # Global settings instance
