@@ -36,16 +36,16 @@ show_usage() {
 # Function to start development environment
 start_dev() {
     local build_flag=$1
-    
+
     print_color $BLUE "Starting development environment..."
     print_color $YELLOW "Using .env (development) and docker-compose.override.yml"
-    
+
     if [ "$build_flag" = "--build" ]; then
         docker-compose up -d --build
     else
         docker-compose up -d
     fi
-    
+
     print_color $GREEN "✓ Development environment started!"
     print_color $YELLOW "Frontend: http://localhost:5173"
     print_color $YELLOW "Backend API: http://localhost:8000"
@@ -55,16 +55,16 @@ start_dev() {
 # Function to start production environment
 start_prod() {
     local build_flag=$1
-    
+
     print_color $BLUE "Starting production environment..."
     print_color $YELLOW "Using docker-compose.prod.yml with .env.production"
-    
+
     if [ "$build_flag" = "--build" ]; then
         ENVIRONMENT=production docker-compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d --build
     else
         ENVIRONMENT=production docker-compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d
     fi
-    
+
     print_color $GREEN "✓ Production environment started!"
     print_color $YELLOW "Frontend: http://localhost"
     print_color $YELLOW "Backend API: http://localhost:8000"
@@ -73,11 +73,11 @@ start_prod() {
 # Function to stop services
 stop_services() {
     print_color $BLUE "Stopping services..."
-    
+
     # Try to stop both environments
     docker-compose down 2>/dev/null || true
     docker-compose -f docker-compose.yml -f docker-compose.prod.yml down 2>/dev/null || true
-    
+
     print_color $GREEN "✓ Services stopped"
 }
 
@@ -96,14 +96,14 @@ show_prod_logs() {
 # Function to check health
 check_health() {
     print_color $BLUE "Checking health of services..."
-    
+
     # Check backend
     if curl -s -f http://localhost:8000/health > /dev/null; then
         print_color $GREEN "✓ Backend is healthy"
     else
         print_color $RED "✗ Backend is not responding"
     fi
-    
+
     # Check frontend (try both dev and prod ports)
     if curl -s -f http://localhost:5173 > /dev/null; then
         print_color $GREEN "✓ Frontend (dev) is healthy"
@@ -112,7 +112,7 @@ check_health() {
     else
         print_color $RED "✗ Frontend is not responding"
     fi
-    
+
     # Check database
     if docker-compose exec -T db pg_isready > /dev/null 2>&1; then
         print_color $GREEN "✓ Database is healthy"
@@ -124,11 +124,11 @@ check_health() {
 # Function to clean up
 clean_up() {
     print_color $BLUE "Cleaning up Docker resources..."
-    
+
     docker-compose down -v --rmi all 2>/dev/null || true
     docker-compose -f docker-compose.yml -f docker-compose.prod.yml down -v --rmi all 2>/dev/null || true
     docker system prune -f
-    
+
     print_color $GREEN "✓ Cleanup completed"
 }
 

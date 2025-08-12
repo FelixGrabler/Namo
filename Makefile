@@ -6,7 +6,7 @@ help:
 	@echo "======================"
 	@echo "Available commands:"
 	@echo "  make dev          - Start development environment (uses docker-compose.override.yml automatically)"
-	@echo "  make prod         - Start production environment" 
+	@echo "  make prod         - Start production environment"
 	@echo "  make down         - Stop development services"
 	@echo "  make down-prod    - Stop production services"
 	@echo "  make clean        - Remove all containers, volumes, and images"
@@ -29,7 +29,7 @@ dev:
 	@echo "Backend API: http://localhost:8000"
 	@echo "Database: localhost:5432"
 
-# Production environment 
+# Production environment
 prod:
 	@echo "Starting production environment..."
 	@echo "Using docker-compose.yml + docker-compose.prod.yml"
