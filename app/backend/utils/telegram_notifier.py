@@ -6,17 +6,32 @@ from datetime import datetime
 import json
 
 from utils.logging_config import APP_LOGGER
+from config import get_required_secret
 
 
 class TelegramNotifier:
     def __init__(self):
-        self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
-        self.base_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        # Try to get from Docker secrets first, then fallback to env vars for dev
+        try:
+            self.bot_token = get_required_secret(
+                "telegram_bot_token", os.getenv("TELEGRAM_BOT_TOKEN")
+            )
+            self.chat_id = get_required_secret(
+                "telegram_chat_id", os.getenv("TELEGRAM_CHAT_ID")
+            )
+        except Exception as e:
+            APP_LOGGER.warning(f"Failed to get telegram secrets, using env vars: {e}")
+            self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+            self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+        if self.bot_token:
+            self.base_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        else:
+            self.base_url = None
 
     async def send_message(self, message: str, parse_mode: str = "HTML") -> bool:
         """Send a message to Telegram."""
-        if not self.bot_token or not self.chat_id:
+        if not self.bot_token or not self.chat_id or not self.base_url:
             APP_LOGGER.warning(
                 "Telegram credentials not configured. Cannot send notification."
             )
@@ -31,8 +46,9 @@ class TelegramNotifier:
                         APP_LOGGER.info("Telegram notification sent successfully")
                         return True
                     else:
+                        response_text = await response.text()
                         APP_LOGGER.error(
-                            f"Failed to send Telegram notification: {response.status}"
+                            f"Failed to send Telegram notification: {response.status} - {response_text}"
                         )
                         return False
         except Exception as e:
@@ -51,22 +67,21 @@ class TelegramNotifier:
     async def send_error_notification(
         self, error_details: dict, context: str = ""
     ) -> bool:
-        """Send a formatted error notification to Telegram."""
+        """Send a simplified error notification to Telegram."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        message = f"""
-🚨 <b>NAMO API ERROR</b> 🚨
+        # Simplified error message
+        error_type = error_details.get("exception_type", "Unknown Error")
+        error_msg = error_details.get("exception_message", "No message")
 
-<b>Time:</b> {timestamp}
-<b>Context:</b> {context if context else 'Unknown'}
-<b>Error Type:</b> {error_details.get('exception_type', 'Unknown')}
-<b>Error Message:</b> {error_details.get('exception_message', 'No message')}
+        message = f"""🚨 NAMO API ERROR
 
-<b>Traceback:</b>
-<pre>{error_details.get('traceback', 'No traceback available')[:1000]}</pre>
+Time: {timestamp}
+Context: {context or 'Unknown'}
+Error: {error_type}
+Message: {error_msg}
 
-#NamoAPI #Error #Backend
-"""
+#NamoAPI #Error"""
 
         return await self.send_message(message)
 
@@ -85,30 +100,24 @@ class TelegramNotifier:
     async def send_startup_notification(self) -> bool:
         """Send a notification when the API starts up."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        message = f"""
-✅ <b>NAMO API STARTED</b>
+        env = os.getenv("ENVIRONMENT", "development")
+        message = f"""✅ NAMO API STARTED
 
-<b>Time:</b> {timestamp}
-<b>Status:</b> API is now running
-<b>Environment:</b> {os.getenv('ENVIRONMENT', 'development')}
+Time: {timestamp}
+Environment: {env}
 
-#NamoAPI #Startup #Backend
-"""
+#NamoAPI #Startup"""
         return await self.send_message(message)
 
     async def send_critical_error_notification(self, error_message: str) -> bool:
         """Send a critical error notification."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        message = f"""
-🔥 <b>CRITICAL ERROR - NAMO API</b> 🔥
+        message = f"""🔥 CRITICAL ERROR - NAMO API
 
-<b>Time:</b> {timestamp}
-<b>Message:</b> {error_message}
+Time: {timestamp}
+Message: {error_message}
 
-This requires immediate attention!
-
-#NamoAPI #Critical #Emergency
-"""
+#NamoAPI #Critical"""
         return await self.send_message(message)
 
 

@@ -11,7 +11,10 @@ from config import get_required_env, get_required_secret
 
 
 # Configuration from environment variables and secrets
-SECRET_KEY = get_required_secret("secret_key")
+def get_secret_key():
+    """Get secret key lazily to avoid import-time errors"""
+    return get_required_secret("secret_key")
+
 
 ALGORITHM = get_required_env("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
@@ -37,26 +40,34 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create a JWT access token."""
-    to_encode = data.copy()
-    now = datetime.now(timezone.utc)
+    try:
+        to_encode = data.copy()
+        now = datetime.now(timezone.utc)
 
-    if expires_delta:
-        expire = now + expires_delta
-    else:
-        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        if expires_delta:
+            expire = now + expires_delta
+        else:
+            expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    # Add standard JWT claims and custom data
-    to_encode.update(
-        {
-            "sub": data.get("username"),  # subject (username)
-            "user_id": data.get("user_id"),  # user ID
-            "iat": int(now.timestamp()),  # issued at timestamp
-            "exp": int(expire.timestamp()),  # expiration timestamp
-        }
-    )
+        # Add standard JWT claims and custom data
+        to_encode.update(
+            {
+                "sub": data.get("username"),  # subject (username)
+                "user_id": data.get("user_id"),  # user ID
+                "iat": int(now.timestamp()),  # issued at timestamp
+                "exp": int(expire.timestamp()),  # expiration timestamp
+            }
+        )
 
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+        secret_key = get_secret_key()
+        if not secret_key:
+            raise ValueError("Secret key not available for JWT signing")
+
+        encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=ALGORITHM)
+        return encoded_jwt
+    except Exception as e:
+        print(f"Error creating access token: {e}")
+        raise
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -68,16 +79,23 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        secret_key = get_secret_key()
+        if not secret_key:
+            raise ValueError("Secret key not available for JWT verification")
+
+        payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
         username: Optional[str] = payload.get("sub")
         user_id: Optional[int] = payload.get("user_id")
-        exp_timestamp: Optional[int] = payload.get("exp")
 
         if username is None or user_id is None:
             raise credentials_exception
 
         return {"username": username, "user_id": user_id}
+    except ValueError as e:
+        print(f"JWT verification error: {e}")
+        raise credentials_exception
     except JWTError as exc:
+        print(f"JWT decode error: {exc}")
         raise credentials_exception from exc
 
 

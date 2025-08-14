@@ -44,11 +44,17 @@ def get_required_secret(
     environment = os.getenv("ENVIRONMENT", "development")
 
     if not secret_value:
-        error_msg = f"❌ Secret '{secret_name}' is required but not available!"
-        print(error_msg)
         if environment == "production":
+            error_msg = f"❌ Secret '{secret_name}' is required but not available!"
+            print(error_msg)
             raise RuntimeError(f"Missing required secret: {secret_name}")
         else:
+            # In development, try env vars or use fallback
+            env_value = os.getenv(secret_name.upper()) or os.getenv(
+                f"DEV_{secret_name.upper()}"
+            )
+            if env_value:
+                return env_value
             print(f"⚠️  Using fallback value for secret '{secret_name}'")
             return fallback_default or ""
 
