@@ -70,16 +70,23 @@ class TelegramNotifier:
         """Send a simplified error notification to Telegram."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Simplified error message
+        # Get error details
         error_type = error_details.get("exception_type", "Unknown Error")
         error_msg = error_details.get("exception_message", "No message")
+        traceback_text = error_details.get("traceback", "")
 
+        # Create message with traceback in code format
         message = f"""🚨 NAMO API ERROR
 
 Time: {timestamp}
 Context: {context or 'Unknown'}
 Error: {error_type}
 Message: {error_msg}
+
+Traceback:
+```
+{traceback_text[:2000]}
+```
 
 #NamoAPI #Error"""
 

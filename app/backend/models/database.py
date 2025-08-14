@@ -35,7 +35,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
 
@@ -46,7 +46,7 @@ class User(Base):
 class Name(Base):
     __tablename__ = "names"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     source = Column(String, nullable=False)  # e.g. 'Austria'
     name = Column(String, nullable=False)
     gender = Column(String, nullable=True)  # 'm' or 'f'
@@ -61,7 +61,7 @@ class Name(Base):
 class Vote(Base):
     __tablename__ = "votes"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name_id = Column(Integer, ForeignKey("names.id"), nullable=False)
     vote = Column(Boolean, nullable=False)  # TRUE = like, FALSE = dislike
