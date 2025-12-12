@@ -26,8 +26,8 @@ services:
 
   backend:
     build:
-      context: ./app/backend
-      dockerfile: Dockerfile # Explicitly use production Dockerfile
+      context: .
+      dockerfile: app/backend/Dockerfile # Explicitly use production Dockerfile
     container_name: namo_backend
     ports:
       - "8001:8000" # Different port for production testing to avoid conflicts
@@ -73,8 +73,8 @@ services:
 
   frontend:
     build:
-      context: ./app/frontend
-      dockerfile: Dockerfile # Explicitly use production Dockerfile
+      context: .
+      dockerfile: app/frontend/Dockerfile # Explicitly use production Dockerfile
     container_name: namo_frontend
     ports:
       - "8080:80" # Use port 8080 for local testing to avoid conflicts
