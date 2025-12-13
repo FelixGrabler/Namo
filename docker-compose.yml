@@ -60,6 +60,7 @@ services:
       - source: prod_telegram_chat_id
         target: telegram_chat_id
     networks:
+      default: {}
       grabler-network:
         aliases:
           - namo-backend
@@ -82,6 +83,7 @@ services:
       VITE_ENVIRONMENT: "production"
       VITE_APP_NAME: "Namo"
     networks:
+      default: {}
       grabler-network:
         aliases:
           - namo-frontend
