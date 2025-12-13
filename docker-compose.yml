@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: namo_db
+    container_name: namo-db
     restart: unless-stopped
     ports:
       - "5434:5432"
@@ -29,7 +29,7 @@ services:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
-    container_name: namo_backend
+    container_name: namo-backend
     restart: unless-stopped
     depends_on:
       db:
@@ -63,7 +63,7 @@ services:
     build:
       context: ./app/frontend
       dockerfile: Dockerfile
-    container_name: namo_frontend
+    container_name: namo-frontend
     restart: unless-stopped
     depends_on:
       backend:
