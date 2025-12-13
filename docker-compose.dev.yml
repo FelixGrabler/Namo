@@ -47,10 +47,14 @@ services:
       LOG_BACKUP_COUNT: "3"
       LOG_CONSOLE: "true"
     secrets:
-      - dev_postgres_password
-      - dev_secret_key
-      - dev_telegram_bot_token
-      - dev_telegram_chat_id
+      - source: dev_postgres_password
+        target: postgres_password
+      - source: dev_secret_key
+        target: secret_key
+      - source: dev_telegram_bot_token
+        target: telegram_bot_token
+      - source: dev_telegram_chat_id
+        target: telegram_chat_id
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

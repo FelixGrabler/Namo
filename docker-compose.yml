@@ -51,10 +51,14 @@ services:
       LOG_BACKUP_COUNT: "5"
       LOG_CONSOLE: "false"
     secrets:
-      - prod_postgres_password
-      - prod_secret_key
-      - prod_telegram_bot_token
-      - prod_telegram_chat_id
+      - source: prod_postgres_password
+        target: postgres_password
+      - source: prod_secret_key
+        target: secret_key
+      - source: prod_telegram_bot_token
+        target: telegram_bot_token
+      - source: prod_telegram_chat_id
+        target: telegram_chat_id
     networks:
       - default
       - grabler-network
