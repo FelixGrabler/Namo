@@ -79,7 +79,8 @@ namo/
 ├── scripts/                  # Deployment scripts
 ├── nginx/                    # Nginx configuration
 ├── secrets/                  # Secret files (dev only)
-└── docker-compose.yml        # Local development setup
+└── docker-compose.yml        # Production deployment
+└── docker-compose.dev.yml    # Local development setup
 ```
 
 ## 🚀 Quick Start
@@ -109,19 +110,19 @@ cp secrets/dev_postgres_password.example.txt secrets/dev_postgres_password.txt
 3. **Start the development environment**
 
 ```bash
-docker-compose up -d
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
 4. **Access the application**
 
 - Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
+- Backend API: http://localhost:8060
+- API Documentation: http://localhost:8060/docs
 
 ### Production Development
 
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.yml up -d
 ```
 
 ## ☸️ Kubernetes Deployment
@@ -284,7 +285,7 @@ The GitHub Actions workflow automatically:
 
 - [Kubernetes Deployment Guide](docs/KUBERNETES_DEPLOYMENT.md)
 - [GitHub Actions Setup](docs/GITHUB_ACTIONS.md)
-- [API Documentation](http://localhost:8000/docs) (when running)
+- [API Documentation](http://localhost:8060/docs) (when running)
 
 ## 🤝 Contributing
 

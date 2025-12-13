@@ -1,99 +1,97 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: postgres
+    container_name: namo_db
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: namo_dev
-      POSTGRES_PASSWORD_FILE: /run/secrets/dev_postgres_password
-      POSTGRES_DB: namo_dev
-    volumes:
-      - db-data:/var/lib/postgresql/data
     ports:
-      - "15432:5432"
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: namo_prod
+      POSTGRES_PASSWORD_FILE: /run/secrets/prod_postgres_password
+      POSTGRES_DB: namo_prod
+    volumes:
+      - db-data-prod:/var/lib/postgresql/data
     secrets:
-      - dev_postgres_password
+      - prod_postgres_password
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "namo_dev", "-d", "namo_dev"]
-      interval: 5s
+      test: ["CMD", "pg_isready", "-U", "namo_prod", "-d", "namo_prod"]
+      interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   backend:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
-    container_name: api
+    container_name: namo_backend
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
     ports:
-      - "8000:8000"
-    volumes:
-      - ./logs:/app/backend/logs
+      - "8061:8000"
     environment:
-      # Environment
-      ENVIRONMENT: development
-
-      # Database
-      POSTGRES_USER: namo_dev
-      POSTGRES_DB: namo_dev
+      ENVIRONMENT: production
+      POSTGRES_USER: namo_prod
+      POSTGRES_DB: namo_prod
       DATABASE_HOST: db
-
-      # FastAPI Configuration
-      DEBUG: "true"
-      RELOAD: "true"
-      LOG_LEVEL: "debug"
-
-      # JWT Configuration
+      DEBUG: "false"
+      RELOAD: "false"
+      LOG_LEVEL: "info"
       ALGORITHM: "HS256"
-      ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
-
-      # CORS Configuration (comment out for local testing)
-      # CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
-
-      # Logging Configuration
-      LOG_MAX_SIZE_MB: "10"
-      LOG_BACKUP_COUNT: "3"
-      LOG_CONSOLE: "true"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      CORS_ORIGINS: "https://namo.grabler.me"
+      LOG_MAX_SIZE_MB: "50"
+      LOG_BACKUP_COUNT: "5"
+      LOG_CONSOLE: "false"
     secrets:
-      - dev_postgres_password
-      - dev_secret_key
-      - dev_telegram_bot_token
-      - dev_telegram_chat_id
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - prod_postgres_password
+      - prod_secret_key
+      - prod_telegram_bot_token
+      - prod_telegram_chat_id
+    networks:
+      - default
+      - grabler-network
 
   frontend:
     build:
       context: ./app/frontend
       dockerfile: Dockerfile
-    container_name: web
+    container_name: namo_frontend
+    restart: unless-stopped
     depends_on:
       backend:
-        condition: service_healthy
-    restart: unless-stopped
+        condition: service_started
+    ports:
+      - "8060:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     environment:
-      VITE_API_URL: "http://localhost:8000"
-      VITE_ENVIRONMENT: "development"
-      VITE_APP_NAME: "Namo Dev"
+      VITE_API_URL: "https://namo.grabler.me"
+      VITE_ENVIRONMENT: "production"
+      VITE_APP_NAME: "Namo"
+    networks:
+      - default
+      - grabler-network
 
 secrets:
-  dev_postgres_password:
-    file: ./secrets/dev_postgres_password.txt
-  dev_secret_key:
-    file: ./secrets/dev_secret_key.txt
-  dev_telegram_bot_token:
+  prod_postgres_password:
+    file: ./secrets/prod_postgres_password.txt
+  prod_secret_key:
+    file: ./secrets/prod_secret_key.txt
+  prod_telegram_bot_token:
     file: ./secrets/telegram_bot_token.txt
-  dev_telegram_chat_id:
-    file: ./secrets/dev_telegram_chat_id.txt
+  prod_telegram_chat_id:
+    file: ./secrets/prod_telegram_chat_id.txt
 
 volumes:
-  db-data:
+  db-data-prod:
 
 networks:
   grabler-network:
