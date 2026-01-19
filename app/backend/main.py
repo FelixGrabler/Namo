@@ -28,6 +28,36 @@ load_dotenv()
 # Note: Database tables will be created by init_db() during startup
 
 
+def sync_id_sequences(conn) -> None:
+    """Align Postgres sequences with current max(id) values."""
+    for table_name in ("users", "names", "votes"):
+        table_exists = conn.execute(
+            text("SELECT to_regclass(:table_name)"),
+            {"table_name": f"public.{table_name}"},
+        ).scalar()
+        if table_exists is None:
+            continue
+
+        seq_name = conn.execute(
+            text("SELECT pg_get_serial_sequence(:table_name, 'id')"),
+            {"table_name": f"public.{table_name}"},
+        ).scalar()
+        if not seq_name:
+            continue
+
+        max_id = conn.execute(text(f"SELECT MAX(id) FROM {table_name}")).scalar()
+        if max_id is None:
+            conn.execute(
+                text("SELECT setval(:seq::regclass, 1, false)"),
+                {"seq": seq_name},
+            )
+        else:
+            conn.execute(
+                text("SELECT setval(:seq::regclass, :max_id, true)"),
+                {"seq": seq_name, "max_id": max_id},
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup - Initialize database with data
@@ -59,6 +89,7 @@ async def lifespan(app: FastAPI):
                     )
 
             Base.metadata.create_all(bind=conn)
+            sync_id_sequences(conn)
             conn.execute(text("SELECT pg_advisory_unlock(424242)"))
         APP_LOGGER.info("Database tables created or verified.")
     except Exception as exc:
