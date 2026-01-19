@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from typing import Union
 import traceback
@@ -42,6 +42,8 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
                 f"Failed to send Telegram notification: {telegram_error}"
             )
 
+    if exc.status_code in (204, 304):
+        return Response(status_code=exc.status_code)
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 

@@ -6,9 +6,9 @@ services:
     ports:
       - "5434:5432"
     environment:
-      POSTGRES_USER: namo
+      POSTGRES_USER: namo_prod
       POSTGRES_PASSWORD_FILE: /run/secrets/prod_postgres_password
-      POSTGRES_DB: namo
+      POSTGRES_DB: namo_prod
     volumes:
       - db-data-prod:/var/lib/postgresql/data
     secrets:
@@ -38,6 +38,7 @@ services:
       - "8061:8000"
     environment:
       ENVIRONMENT: production
+      INIT_DB_ON_STARTUP: "false"
       POSTGRES_USER: namo_prod
       POSTGRES_DB: namo_prod
       DATABASE_HOST: db

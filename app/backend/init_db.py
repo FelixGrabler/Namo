@@ -7,7 +7,7 @@ import csv
 import os
 from pathlib import Path
 from sqlalchemy.orm import Session
-from models.database import engine, SessionLocal, Base, User, Name
+from models.database import engine, SessionLocal, Base, User, Name, Vote
 from auth.auth_utils import get_password_hash
 
 
@@ -77,41 +77,50 @@ def init_db(force_reload: bool = False):
     db = SessionLocal()
 
     try:
-        # Check if we already have data
-        if not force_reload and db.query(Name).first() is not None:
-            print("Database already has data, skipping initialization.")
-            print("Use --force to reload data anyway.")
-            return
-
         # Clear existing data if force_reload
         if force_reload:
             print("Force reload: Clearing existing data...")
+            db.query(Vote).delete()
             db.query(Name).delete()
             db.query(User).delete()
             db.commit()
 
-        # Create sample users
-        users = [
-            User(username="admin", password_hash=get_password_hash("admin123")),
-            User(username="testuser", password_hash=get_password_hash("password123")),
-        ]
+        # Create sample users only if missing
+        users_created = 0
+        if db.query(User).first() is None:
+            users = [
+                User(username="admin", password_hash=get_password_hash("admin123")),
+                User(
+                    username="testuser", password_hash=get_password_hash("password123")
+                ),
+            ]
+            for user in users:
+                db.add(user)
+            users_created = len(users)
+        else:
+            print("Users already exist, skipping user initialization.")
 
-        for user in users:
-            db.add(user)
+        # Load names only if missing
+        names_created = 0
+        if db.query(Name).first() is None:
+            csv_path = "data/Austria.csv"
+            names = load_names_from_csv(csv_path)
 
-        # Load names from CSV or use sample data
-        csv_path = "data/Austria.csv"
-        names = load_names_from_csv(csv_path)
+            if not names:
+                print("No CSV data found, using sample data...")
+                names = get_sample_names()
 
-        if not names:
-            print("No CSV data found, using sample data...")
-            names = get_sample_names()
-
-        for name in names:
-            db.add(name)
+            for name in names:
+                db.add(name)
+            names_created = len(names)
+        else:
+            print("Names already exist, skipping name initialization.")
 
         db.commit()
-        print(f"Database initialized with {len(users)} users and {len(names)} names.")
+        print(
+            "Database initialization complete: "
+            f"{users_created} users, {names_created} names."
+        )
 
     except Exception as e:
         print(f"Error initializing database: {e}")
