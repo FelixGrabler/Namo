@@ -48,13 +48,12 @@ def sync_id_sequences(conn) -> None:
         max_id = conn.execute(text(f"SELECT MAX(id) FROM {table_name}")).scalar()
         if max_id is None:
             conn.execute(
-                text("SELECT setval(:seq::regclass, 1, false)"),
-                {"seq": seq_name},
+                text(f"SELECT setval('{seq_name}'::regclass, 1, false)")
             )
         else:
             conn.execute(
-                text("SELECT setval(:seq::regclass, :max_id, true)"),
-                {"seq": seq_name, "max_id": max_id},
+                text(f"SELECT setval('{seq_name}'::regclass, :max_id, true)"),
+                {"max_id": max_id},
             )
 
 
