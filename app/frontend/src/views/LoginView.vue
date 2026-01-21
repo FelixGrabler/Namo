@@ -34,7 +34,7 @@
         <button type="submit" class="auth-submit" :disabled="isLoading">
           {{
             isLoading
-              ? 'Laedt...'
+              ? 'Lädt...'
               : (isLoginMode ? 'Login' : 'Registrieren')
           }}
         </button>

@@ -18,6 +18,15 @@
       <span class="nav-label">Home</span>
     </router-link>
 
+    <router-link to="/voted" class="nav-item" :class="{ active: $route.name === 'VotedNames' }">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3M7,7H17V9H7V7M7,11H17V13H7V11M7,15H14V17H7V15Z"/>
+        </svg>
+      </div>
+      <span class="nav-label">Auswertung</span>
+    </router-link>
+
     <router-link to="/account" class="nav-item" :class="{ active: $route.name === 'Account' }">
       <div class="nav-icon">
         <svg viewBox="0 0 24 24" fill="currentColor">

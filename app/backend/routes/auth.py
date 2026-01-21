@@ -7,9 +7,10 @@ from auth.auth_utils import (
     verify_password,
     create_access_token,
     get_db,
+    get_current_user,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
-from models.database import User
+from models.database import User, Vote
 from schemas.schemas import UserCreate, UserResponse, UserLogin, Token
 from utils.logging_config import APP_LOGGER
 
@@ -111,4 +112,31 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
         APP_LOGGER.error(f"Login error for user {user.username}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login failed"
+        )
+
+
+@router.delete("/me")
+def delete_current_user(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete the current user and their votes."""
+    APP_LOGGER.info(f"Delete account requested for user: {current_user.username}")
+
+    try:
+        db.query(Vote).filter(Vote.user_id == current_user.id).delete(
+            synchronize_session=False
+        )
+        db.delete(current_user)
+        db.commit()
+        APP_LOGGER.info(f"User deleted: {current_user.username} (ID: {current_user.id})")
+        return {"detail": "User deleted"}
+    except Exception as exc:
+        db.rollback()
+        APP_LOGGER.error(
+            f"Delete account error for user {current_user.username}: {str(exc)}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Account deletion failed",
         )
