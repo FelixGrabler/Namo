@@ -10,6 +10,7 @@ export const useNameService = () => {
       genders?: Gender[];
       source?: string;
       requireCount?: boolean;
+      excludeVoted?: boolean;
     }
   ): Promise<NameResponse[]> => {
     const params: any = { n }
@@ -30,10 +31,14 @@ export const useNameService = () => {
       params.require_count = true
     }
 
+    if (options?.excludeVoted === false) {
+      params.exclude_voted = false
+    }
+
     const response = await axios.get('/api/names/random', {
       params
     })
-    return response.data
+    return response.data ?? []
   }
 
   const searchNames = async (

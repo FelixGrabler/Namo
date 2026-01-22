@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 
 # User schemas
@@ -79,6 +79,15 @@ class VoteWithName(BaseModel):
     name_id: int
     vote: bool
     name: NameResponse
+
+    class Config:
+        from_attributes = True
+
+
+class VoteCompareResponse(BaseModel):
+    both: List[NameResponse]
+    only_you: List[NameResponse]
+    only_other: List[NameResponse]
 
     class Config:
         from_attributes = True

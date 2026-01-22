@@ -232,7 +232,11 @@ def get_random_wordle_name(
         .filter(
             func.length(Name.name) == 5,
             Name.name.op("~")("^[A-Za-z]{5}$"),
+            Name.count.isnot(None),
+            Name.count >= 8,
         )
+        .order_by(Name.count.desc())
+        .limit(100)
         .all()
     )
 
@@ -260,6 +264,8 @@ def validate_wordle_name(
             func.length(Name.name) == 5,
             func.lower(Name.name) == name.lower(),
             Name.name.op("~")("^[A-Za-z]{5}$"),
+            Name.count.isnot(None),
+            Name.count >= 8,
         )
         .first()
         is not None

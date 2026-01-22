@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from auth.auth_utils import get_db, get_current_user
 from models.database import Vote, User, Name
-from schemas.schemas import VoteCreate, VoteResponse, VoteWithName
+from schemas.schemas import VoteCreate, VoteResponse, VoteWithName, VoteCompareResponse
 
 router = APIRouter()
 
@@ -83,7 +83,7 @@ def delete_vote_by_name(
 
 
 # GET /votes/compare?other_username=jessica
-@router.get("/compare", response_model=dict)
+@router.get("/compare", response_model=VoteCompareResponse)
 def compare_votes(
     other_username: str,
     db: Session = Depends(get_db),

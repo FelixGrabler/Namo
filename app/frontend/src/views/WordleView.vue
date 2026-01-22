@@ -37,6 +37,22 @@
           >
             Tipp abgeben
           </button>
+          <div class="grid grid-cols-2 gap-3">
+            <button
+              class="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              @click="giveHint"
+              :disabled="gameStatus !== 'playing' || hintUsed"
+            >
+              Hinweis
+            </button>
+            <button
+              class="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              @click="giveUp"
+              :disabled="gameStatus !== 'playing'"
+            >
+              Aufgeben
+            </button>
+          </div>
           <p v-if="message" class="text-sm text-slate-600 text-center">{{ message }}</p>
         </div>
 
@@ -73,6 +89,8 @@ const currentGuess = ref('')
 const targetName = ref('')
 const gameStatus = ref<'playing' | 'won' | 'lost'>('playing')
 const message = ref('')
+const hintUsed = ref(false)
+const hintLetter = ref('')
 
 const targetDisplay = computed(() => targetName.value.toUpperCase())
 
@@ -85,6 +103,8 @@ const resetState = async () => {
   guesses.value = []
   currentGuess.value = ''
   message.value = ''
+  hintUsed.value = false
+  hintLetter.value = ''
   gameStatus.value = 'playing'
   await fetchTarget()
 }
@@ -146,6 +166,19 @@ const submitGuess = async () => {
   if (guesses.value.length >= maxRows) {
     gameStatus.value = 'lost'
   }
+}
+
+const giveHint = () => {
+  if (hintUsed.value || gameStatus.value !== 'playing') return
+  hintLetter.value = targetName.value[0]?.toUpperCase() ?? ''
+  hintUsed.value = true
+  message.value = `Hinweis: Der Name beginnt mit ${hintLetter.value}.`
+}
+
+const giveUp = () => {
+  if (gameStatus.value !== 'playing') return
+  gameStatus.value = 'lost'
+  message.value = `Aufgegeben. Der Name war ${targetDisplay.value}.`
 }
 
 const cellLetter = (row: number, col: number) => {

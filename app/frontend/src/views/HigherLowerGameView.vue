@@ -14,6 +14,21 @@
         Lade Namen...
       </div>
 
+      <div
+        v-else-if="!leftName || !rightName"
+        class="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-500"
+      >
+        Keine Namen verfugbar. Bitte spater erneut versuchen.
+        <div class="mt-4">
+          <button
+            class="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            @click="restartGame"
+          >
+            Neu laden
+          </button>
+        </div>
+      </div>
+
       <div v-else class="space-y-6">
         <div class="grid gap-6 lg:grid-cols-2">
           <div class="rounded-3xl p-6 text-center shadow-sm border" :class="leftCardClasses">
@@ -121,7 +136,11 @@ const animateCount = (side: 'left' | 'right', target: number) => {
 }
 
 const fetchRandomName = async (excludeId?: number) => {
-  const results = await nameService.getRandomNames(1, { source: 'Austria', requireCount: true })
+  const results = await nameService.getRandomNames(1, {
+    source: 'Austria',
+    requireCount: true,
+    excludeVoted: false
+  })
   const candidate = results[0]
   if (candidate && candidate.id === excludeId) {
     return fetchRandomName(excludeId)
@@ -132,7 +151,11 @@ const fetchRandomName = async (excludeId?: number) => {
 const loadInitial = async () => {
   loading.value = true
   try {
-    const results = await nameService.getRandomNames(2, { source: 'Austria', requireCount: true })
+    const results = await nameService.getRandomNames(2, {
+      source: 'Austria',
+      requireCount: true,
+      excludeVoted: false
+    })
     leftName.value = results[0] ?? null
     rightName.value = results[1] ?? null
     revealLeft.value = false
