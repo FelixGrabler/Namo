@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.dialects.postgresql import insert
 from typing import List, Optional
 
 from auth.auth_utils import get_db, get_current_user
@@ -21,23 +22,18 @@ def create_or_update_vote(
     if not name:
         raise HTTPException(status_code=404, detail="Name not found")
 
-    existing = (
-        db.query(Vote)
-        .filter(Vote.user_id == current_user.id, Vote.name_id == vote.name_id)
-        .first()
+    upsert_stmt = (
+        insert(Vote)
+        .values(user_id=current_user.id, name_id=vote.name_id, vote=vote.vote)
+        .on_conflict_do_update(
+            index_elements=[Vote.user_id, Vote.name_id],
+            set_={"vote": vote.vote},
+        )
+        .returning(Vote.id)
     )
-
-    if existing:
-        existing.vote = vote.vote
-        db.commit()
-        db.refresh(existing)
-        return existing
-    else:
-        new_vote = Vote(user_id=current_user.id, name_id=vote.name_id, vote=vote.vote)
-        db.add(new_vote)
-        db.commit()
-        db.refresh(new_vote)
-        return new_vote
+    vote_id = db.execute(upsert_stmt).scalar_one()
+    db.commit()
+    return db.get(Vote, vote_id)
 
 
 # GET /votes?vote=true&skip=0&limit=100
