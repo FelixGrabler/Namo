@@ -60,6 +60,34 @@
         </router-link>
 
         <router-link
+          to="/names"
+          @click="closeMenu"
+          class="menu-item"
+          :class="{ active: $route.name === 'NameSearch' }"
+        >
+          <div class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9.5 3A6.5 6.5 0 0 1 16 9.5C16 11.04 15.42 12.45 14.47 13.53L19 18.06L17.59 19.47L13.06 14.94C11.98 15.89 10.56 16.47 9 16.47A6.5 6.5 0 1 1 9.5 3M9.5 5A4.5 4.5 0 1 0 14 9.5A4.5 4.5 0 0 0 9.5 5Z"/>
+            </svg>
+          </div>
+          <span>Namensinfo</span>
+        </router-link>
+
+        <router-link
+          to="/compare"
+          @click="closeMenu"
+          class="menu-item"
+          :class="{ active: $route.name === 'CompareVotes' }"
+        >
+          <div class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4A4 4 0 1 1 8 8A4 4 0 0 1 12 4M6 18C6 15.79 8.69 14 12 14C15.31 14 18 15.79 18 18V20H6V18M20 7H22V9H20V7M20 11H22V13H20V11M2 7H4V9H2V7M2 11H4V13H2V11Z"/>
+            </svg>
+          </div>
+          <span>Vergleich</span>
+        </router-link>
+
+        <router-link
           to="/voted"
           @click="closeMenu"
           class="menu-item"

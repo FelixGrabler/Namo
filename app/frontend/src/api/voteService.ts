@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { VoteCreate, VoteWithName } from '@/types'
+import type { VoteCreate, VoteWithName, VoteCompareResponse } from '@/types'
 
 export const useVoteService = () => {
   const submitVote = async (vote: VoteCreate) => {
@@ -16,8 +16,16 @@ export const useVoteService = () => {
     return response.data
   }
 
+  const compareVotes = async (otherUsername: string): Promise<VoteCompareResponse> => {
+    const response = await axios.get('/api/votes/compare', {
+      params: { other_username: otherUsername }
+    })
+    return response.data
+  }
+
   return {
     submitVote,
-    getVotes
+    getVotes,
+    compareVotes
   }
 }

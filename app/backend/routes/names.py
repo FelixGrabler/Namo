@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 import random
+import re
 
 from auth.auth_utils import get_db, get_current_user
 from models.database import Name, User, Vote
@@ -19,6 +21,8 @@ def get_random_names(
     genders: Optional[str] = None,
     sort_order: Optional[str] = Query("random"),
     exclude_voted: bool = Query(True),
+    source: Optional[str] = None,
+    require_count: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -36,6 +40,9 @@ def get_random_names(
         voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
         query = query.filter(~Name.id.in_(voted_subq))
 
+    if source:
+        query = query.filter(Name.source.ilike(f"%{source}%"))
+
     # Apply gender filter if valid
     if genders:
         gender_list = [g.strip().lower() for g in genders.split(",")]
@@ -49,6 +56,9 @@ def get_random_names(
 
         if db_genders:
             query = query.filter(Name.gender.in_(db_genders))
+
+    if require_count:
+        query = query.filter(Name.count.isnot(None))
 
     # Pull all eligible names into memory (OK up to ~10k rows)
     eligible_names = query.all()
@@ -89,6 +99,39 @@ def get_random_names(
 
     log_info(f"Returning {len(selected)} random names", "get_random_names")
     return selected
+
+
+# GET /names/search?q=anna&limit=20&after_name=anna&after_id=10&source=austria
+@router.get("/search", response_model=List[NameResponse])
+def search_names(
+    q: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    after_name: Optional[str] = None,
+    after_id: Optional[int] = None,
+    source: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Search names by substring with simple keyset pagination."""
+    query = db.query(Name)
+
+    if q:
+        query = query.filter(Name.name.ilike(f"%{q}%"))
+
+    if source:
+        query = query.filter(Name.source.ilike(f"%{source}%"))
+
+    if after_name:
+        if after_id is None:
+            raise HTTPException(status_code=400, detail="after_id required with after_name")
+        after_name_lower = after_name.lower()
+        query = query.filter(
+            (func.lower(Name.name) > after_name_lower)
+            | ((func.lower(Name.name) == after_name_lower) & (Name.id > after_id))
+        )
+
+    query = query.order_by(func.lower(Name.name).asc(), Name.id.asc())
+    return query.limit(limit).all()
 
 
 # GET /names/ordered?direction=popular&after=123&limit=10&source=source_name&gender=m
@@ -175,3 +218,50 @@ def get_name_info(
         name=name,
         info=wiktionary_info,
     )
+
+
+# GET /names/wordle/random
+@router.get("/wordle/random", response_model=dict)
+def get_random_wordle_name(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return a random 5-letter A-Za-z name for Wordle."""
+    eligible = (
+        db.query(Name.name)
+        .filter(
+            func.length(Name.name) == 5,
+            Name.name.op("~")("^[A-Za-z]{5}$"),
+        )
+        .all()
+    )
+
+    if not eligible:
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+    selected = random.choice(eligible)[0]
+    return {"name": selected}
+
+
+# GET /names/wordle/validate?name=Annaa
+@router.get("/wordle/validate", response_model=dict)
+def validate_wordle_name(
+    name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Validate a Wordle guess against available 5-letter names."""
+    if not re.match(r"^[A-Za-z]{5}$", name):
+        return {"valid": False}
+
+    exists = (
+        db.query(Name.id)
+        .filter(
+            func.length(Name.name) == 5,
+            func.lower(Name.name) == name.lower(),
+            Name.name.op("~")("^[A-Za-z]{5}$"),
+        )
+        .first()
+        is not None
+    )
+    return {"valid": exists}

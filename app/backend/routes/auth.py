@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import timedelta
+from typing import Optional, List
 
 from auth.auth_utils import (
     get_password_hash,
@@ -140,3 +142,37 @@ def delete_current_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Account deletion failed",
         )
+
+
+# GET /auth/users/search?q=ann&limit=20&after_username=anna&after_id=10
+@router.get("/users/search", response_model=List[UserResponse])
+def search_users(
+    q: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    after_username: Optional[str] = None,
+    after_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Search users by username with keyset pagination."""
+    query = db.query(User)
+
+    if q:
+        query = query.filter(User.username.ilike(f"%{q}%"))
+
+    if after_username:
+        if after_id is None:
+            raise HTTPException(
+                status_code=400, detail="after_id required with after_username"
+            )
+        after_username_lower = after_username.lower()
+        query = query.filter(
+            (func.lower(User.username) > after_username_lower)
+            | (
+                (func.lower(User.username) == after_username_lower)
+                & (User.id > after_id)
+            )
+        )
+
+    query = query.order_by(func.lower(User.username).asc(), User.id.asc())
+    return query.limit(limit).all()

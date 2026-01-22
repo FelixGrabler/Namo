@@ -8,6 +8,11 @@ export interface NameResponse {
   info?: { [key: string]: any } | null
 }
 
+export interface UserResponse {
+  id: number
+  username: string
+}
+
 export interface VoteCreate {
   name_id: number
   vote: boolean  // True = like, False = dislike
@@ -24,6 +29,12 @@ export interface VoteWithName {
   name_id: number
   vote: boolean
   name: NameResponse
+}
+
+export interface VoteCompareResponse {
+  both: NameResponse[]
+  only_you: NameResponse[]
+  only_other: NameResponse[]
 }
 
 export interface LoginRequest {
