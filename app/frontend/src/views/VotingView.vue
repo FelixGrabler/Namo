@@ -21,11 +21,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
 import { useNameBuffer } from '@/stores/useNameBuffer'
 import { useVoteService } from '@/api/voteService'
+import type { VoteCreate } from '@/types'
 
 import NameCard from '@/components/NameCard.vue'
 import VoteButtons from '@/components/VoteButtons.vue'
@@ -52,20 +53,14 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown)
 })
 
-const handleVote = async (vote: boolean) => {
+const handleVote = (vote: boolean) => {
   console.log('handleVote', vote)
   if (!currentName.value) return
 
-  try {
-    await useVoteService().submitVote({ name_id: currentName.value.id, vote })
-    nameBuffer.removeCurrentName()
-    await nameBuffer.ensureBuffer()
-  } catch (err: any) {
-    if (err?.response?.status === 401) {
-      userStore.logout()
-      router.push('/login')
-    }
-  }
+  const selectedName = currentName.value
+  nameBuffer.removeCurrentName()
+  nameBuffer.ensureBuffer()
+  void sendVote({ name_id: selectedName.id, vote })
 }
 
 const handleUndo = () => {
@@ -92,6 +87,17 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
         handleUndo()
       }
       break
+  }
+}
+
+const sendVote = async (vote: VoteCreate) => {
+  try {
+    await useVoteService().submitVote(vote)
+  } catch (err: any) {
+    if (err?.response?.status === 401) {
+      userStore.logout()
+      router.push('/login')
+    }
   }
 }
 </script>
