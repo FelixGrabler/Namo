@@ -11,6 +11,7 @@ export const useNameService = () => {
       source?: string;
       requireCount?: boolean;
       excludeVoted?: boolean;
+      topNByCount?: number;
     }
   ): Promise<NameResponse[]> => {
     const params: any = { n }
@@ -33,6 +34,10 @@ export const useNameService = () => {
 
     if (options?.excludeVoted === false) {
       params.exclude_voted = false
+    }
+
+    if (options?.topNByCount) {
+      params.top_n_by_count = options.topNByCount
     }
 
     const response = await axios.get('/api/names/random', {

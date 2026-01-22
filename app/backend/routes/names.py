@@ -23,6 +23,7 @@ def get_random_names(
     exclude_voted: bool = Query(True),
     source: Optional[str] = None,
     require_count: bool = Query(False),
+    top_n_by_count: Optional[int] = Query(None, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -59,6 +60,9 @@ def get_random_names(
 
     if require_count:
         query = query.filter(Name.count.isnot(None))
+
+    if top_n_by_count is not None:
+        query = query.filter(Name.count.isnot(None)).order_by(Name.count.desc()).limit(top_n_by_count)
 
     # Pull all eligible names into memory (OK up to ~10k rows)
     eligible_names = query.all()
@@ -233,10 +237,9 @@ def get_random_wordle_name(
             func.length(Name.name) == 5,
             Name.name.op("~")("^[A-Za-z]{5}$"),
             Name.count.isnot(None),
-            Name.count >= 8,
         )
         .order_by(Name.count.desc())
-        .limit(100)
+        .limit(30)
         .all()
     )
 
@@ -265,7 +268,6 @@ def validate_wordle_name(
             func.lower(Name.name) == name.lower(),
             Name.name.op("~")("^[A-Za-z]{5}$"),
             Name.count.isnot(None),
-            Name.count >= 8,
         )
         .first()
         is not None

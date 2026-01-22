@@ -137,9 +137,10 @@ const animateCount = (side: 'left' | 'right', target: number) => {
 
 const fetchRandomName = async (excludeId?: number) => {
   const results = await nameService.getRandomNames(1, {
-    source: 'Austria',
+    source: 'Österreich',
     requireCount: true,
-    excludeVoted: false
+    excludeVoted: false,
+    topNByCount: 200
   })
   const candidate = results[0]
   if (candidate && candidate.id === excludeId) {
@@ -152,9 +153,10 @@ const loadInitial = async () => {
   loading.value = true
   try {
     const results = await nameService.getRandomNames(2, {
-      source: 'Austria',
+      source: 'Österreich',
       requireCount: true,
-      excludeVoted: false
+      excludeVoted: false,
+      topNByCount: 200
     })
     leftName.value = results[0] ?? null
     rightName.value = results[1] ?? null
