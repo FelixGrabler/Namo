@@ -57,6 +57,22 @@ def sync_id_sequences(conn) -> None:
             )
 
 
+def ensure_user_auth_columns(conn) -> None:
+    """Backfill schema for shared-auth integration without Alembic."""
+    user_table_exists = conn.execute(
+        text("SELECT to_regclass('public.users')")
+    ).scalar()
+    if user_table_exists is None:
+        return
+
+    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_user_id INTEGER"))
+    conn.execute(
+        text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_auth_user_id ON users (auth_user_id)"
+        )
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup - Initialize database with data
@@ -88,6 +104,7 @@ async def lifespan(app: FastAPI):
                     )
 
             Base.metadata.create_all(bind=conn)
+            ensure_user_auth_columns(conn)
             sync_id_sequences(conn)
             conn.execute(text("SELECT pg_advisory_unlock(424242)"))
         APP_LOGGER.info("Database tables created or verified.")

@@ -1,18 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import timedelta
 from typing import Optional, List
 
 from auth.auth_utils import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
     get_db,
     get_current_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
+    request_auth_token,
 )
-from models.database import User, Vote
+from models.database import User
 from schemas.schemas import UserCreate, UserResponse, UserLogin, Token
 from utils.logging_config import APP_LOGGER
 
@@ -21,41 +17,24 @@ router = APIRouter()
 
 @router.post("/register", response_model=Token)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user and return an access token."""
+    """Register via shared auth and sync the local Namo user mirror."""
 
     APP_LOGGER.info(f"Registration attempt for user: {user.username}")
 
     try:
-        # Check if user already exists
-        db_user = db.query(User).filter(User.username == user.username).first()
-        if db_user:
-            APP_LOGGER.warning(
-                f"Registration failed - user already exists: {user.username}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already registered",
-            )
-
-        # Hash password and create user
-        hashed_password = get_password_hash(user.password)
-        new_user = User(username=user.username, password_hash=hashed_password)
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-
+        token_payload = request_auth_token(user.username, user.password, "register")
+        db_user = get_current_user(
+            token_data={
+                "username": user.username,
+                "auth_user_id": _decode_token_user_id(token_payload["access_token"]),
+                "token": token_payload["access_token"],
+            },
+            db=db,
+        )
         APP_LOGGER.info(
-            f"User created successfully: {user.username} (ID: {new_user.id})"
+            f"Shared auth registration complete: {db_user.username} (local ID: {db_user.id}, auth ID: {db_user.auth_user_id})"
         )
-
-        # Create access token
-        access_token = create_access_token(
-            data={"username": new_user.username, "user_id": new_user.id}
-        )
-
-        APP_LOGGER.info(f"Access token created for user: {user.username}")
-
-        return {"access_token": access_token, "token_type": "bearer"}
+        return token_payload
 
     except HTTPException:
         raise
@@ -70,43 +49,24 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login_user(user: UserLogin, db: Session = Depends(get_db)):
-    """Login user and return access token."""
+    """Login via shared auth and sync the local Namo user mirror."""
 
     APP_LOGGER.info(f"Login attempt for user: {user.username}")
 
     try:
-        # Authenticate user
-        db_user = db.query(User).filter(User.username == user.username).first()
-        if not db_user:
-            APP_LOGGER.warning(f"Login failed - user not found: {user.username}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        if not verify_password(user.password, str(db_user.password_hash)):
-            APP_LOGGER.warning(
-                f"Login failed - invalid password for user: {user.username}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
+        token_payload = request_auth_token(user.username, user.password, "login")
+        db_user = get_current_user(
+            token_data={
+                "username": user.username,
+                "auth_user_id": _decode_token_user_id(token_payload["access_token"]),
+                "token": token_payload["access_token"],
+            },
+            db=db,
+        )
         APP_LOGGER.info(
-            f"User authenticated successfully: {user.username} (ID: {db_user.id})"
+            f"Shared auth login complete: {db_user.username} (local ID: {db_user.id}, auth ID: {db_user.auth_user_id})"
         )
-
-        # Create access token
-        access_token = create_access_token(
-            data={"username": db_user.username, "user_id": db_user.id}
-        )
-
-        APP_LOGGER.info(f"Access token created for user: {user.username}")
-
-        return {"access_token": access_token, "token_type": "bearer"}
+        return token_payload
 
     except HTTPException:
         raise
@@ -119,29 +79,16 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
 
 @router.delete("/me")
 def delete_current_user(
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete the current user and their votes."""
-    APP_LOGGER.info(f"Delete account requested for user: {current_user.username}")
-
-    try:
-        db.query(Vote).filter(Vote.user_id == current_user.id).delete(
-            synchronize_session=False
-        )
-        db.delete(current_user)
-        db.commit()
-        APP_LOGGER.info(f"User deleted: {current_user.username} (ID: {current_user.id})")
-        return {"detail": "User deleted"}
-    except Exception as exc:
-        db.rollback()
-        APP_LOGGER.error(
-            f"Delete account error for user {current_user.username}: {str(exc)}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Account deletion failed",
-        )
+    """Account deletion must be handled by the shared auth service."""
+    APP_LOGGER.info(
+        f"Delete account requested for user {current_user.username}, but central auth owns account lifecycle"
+    )
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Account deletion must be handled by the shared auth service",
+    )
 
 
 # GET /auth/users/search?q=ann&limit=20&after_username=anna&after_id=10
@@ -176,3 +123,13 @@ def search_users(
 
     query = query.order_by(func.lower(User.username).asc(), User.id.asc())
     return query.limit(limit).all()
+
+
+def _decode_token_user_id(access_token: str) -> int:
+    from auth.auth_utils import verify_token
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    token_data = verify_token(
+        HTTPAuthorizationCredentials(scheme="Bearer", credentials=access_token)
+    )
+    return int(token_data["auth_user_id"])

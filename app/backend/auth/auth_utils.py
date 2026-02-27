@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta, timezone
 from typing import Optional
+import requests
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -17,57 +16,9 @@ def get_secret_key():
 
 
 ALGORITHM = get_required_env("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    get_required_env("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")
-)
+AUTH_SERVICE_URL = get_required_env("AUTH_SERVICE_URL", "http://shared-auth:8000/api/auth")
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Security
 security = HTTPBearer()
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
-    """Hash a password."""
-    return pwd_context.hash(password)
-
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Create a JWT access token."""
-    try:
-        to_encode = data.copy()
-        now = datetime.now(timezone.utc)
-
-        if expires_delta:
-            expire = now + expires_delta
-        else:
-            expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-        # Add standard JWT claims and custom data
-        to_encode.update(
-            {
-                "sub": data.get("username"),  # subject (username)
-                "user_id": data.get("user_id"),  # user ID
-                "iat": int(now.timestamp()),  # issued at timestamp
-                "exp": int(expire.timestamp()),  # expiration timestamp
-            }
-        )
-
-        secret_key = get_secret_key()
-        if not secret_key:
-            raise ValueError("Secret key not available for JWT signing")
-
-        encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=ALGORITHM)
-        return encoded_jwt
-    except Exception as e:
-        print(f"Error creating access token: {e}")
-        raise
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -85,12 +36,12 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
         payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
         username: Optional[str] = payload.get("sub")
-        user_id: Optional[int] = payload.get("user_id")
+        auth_user_id: Optional[int] = payload.get("user_id")
 
-        if username is None or user_id is None:
+        if username is None or auth_user_id is None:
             raise credentials_exception
 
-        return {"username": username, "user_id": user_id}
+        return {"username": username, "auth_user_id": auth_user_id, "token": token}
     except ValueError as e:
         print(f"JWT verification error: {e}")
         raise credentials_exception
@@ -113,11 +64,61 @@ def get_current_user(
 ) -> User:
     """Get current authenticated user."""
     username = token_data["username"]
-    user_id = token_data["user_id"]
+    auth_user_id = token_data["auth_user_id"]
 
-    user = db.query(User).filter(User.username == username, User.id == user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+    user = db.query(User).filter(User.auth_user_id == auth_user_id).first()
+    if user is not None:
+        if user.username != username:
+            user.username = username
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+
+    fallback_user = db.query(User).filter(User.username == username).first()
+    if fallback_user is not None:
+        fallback_user.auth_user_id = auth_user_id
+        fallback_user.username = username
+        db.add(fallback_user)
+        db.commit()
+        db.refresh(fallback_user)
+        return fallback_user
+
+    new_user = User(auth_user_id=auth_user_id, username=username, password_hash=None)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+def request_auth_token(username: str, password: str, endpoint: str) -> dict:
+    try:
+        response = requests.post(
+            f"{AUTH_SERVICE_URL.rstrip('/')}/{endpoint.lstrip('/')}",
+            json={"username": username, "password": password},
+            timeout=10,
         )
-    return user
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Shared authentication service is unavailable",
+        ) from exc
+
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {"detail": response.text}
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=payload.get("detail", "Authentication request failed"),
+        )
+
+    token = payload.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Shared authentication service returned no token",
+        )
+    return payload

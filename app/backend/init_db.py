@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 from sqlalchemy.orm import Session
 from models.database import engine, SessionLocal, Base, User, Name, Vote
-from auth.auth_utils import get_password_hash
 
 
 def load_names_from_csv(file_path: str) -> list:
@@ -85,20 +84,9 @@ def init_db(force_reload: bool = False):
             db.query(User).delete()
             db.commit()
 
-        # Create sample users only if missing
+        # Users are synchronized from the shared auth service on first login.
         users_created = 0
-        if db.query(User).first() is None:
-            users = [
-                User(username="admin", password_hash=get_password_hash("admin123")),
-                User(
-                    username="testuser", password_hash=get_password_hash("password123")
-                ),
-            ]
-            for user in users:
-                db.add(user)
-            users_created = len(users)
-        else:
-            print("Users already exist, skipping user initialization.")
+        print("Skipping local user initialization; shared auth is authoritative.")
 
         # Load names only if missing
         names_created = 0
