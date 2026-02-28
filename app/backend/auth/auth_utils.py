@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 import requests
 from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends
@@ -19,6 +19,42 @@ ALGORITHM = get_required_env("ALGORITHM", "HS256")
 AUTH_SERVICE_URL = get_required_env("AUTH_SERVICE_URL", "http://shared-auth:8000/api/auth")
 
 security = HTTPBearer()
+
+
+def fetch_auth_user(token: str) -> dict[str, Any]:
+    """Resolve the current user from the shared auth service."""
+    try:
+        response = requests.get(
+            f"{AUTH_SERVICE_URL.rstrip('/')}/me",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Shared authentication service is unavailable",
+        ) from exc
+
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {"detail": response.text}
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=payload.get("detail", "Could not validate credentials"),
+        )
+
+    user_id = payload.get("id")
+    username = payload.get("username")
+    if user_id is None or username is None:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Shared authentication service returned invalid user data",
+        )
+
+    return {"username": str(username), "auth_user_id": int(user_id), "token": token}
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -44,10 +80,15 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         return {"username": username, "auth_user_id": auth_user_id, "token": token}
     except ValueError as e:
         print(f"JWT verification error: {e}")
-        raise credentials_exception
     except JWTError as exc:
         print(f"JWT decode error: {exc}")
-        raise credentials_exception from exc
+
+    try:
+        return fetch_auth_user(token)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise credentials_exception from exc
+        raise
 
 
 def get_db():

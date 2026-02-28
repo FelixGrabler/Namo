@@ -2,7 +2,7 @@
   <div class="auth-view">
     <div class="auth-card">
       <div class="auth-header">
-        <span class="auth-badge">{{ isLoginMode ? 'Willkommen zurueck' : 'Neu hier?' }}</span>
+        <span class="auth-badge">{{ isLoginMode ? 'Willkommen zurück' : 'Neu hier?' }}</span>
         <h1 class="auth-title">{{ isLoginMode ? 'Anmelden' : 'Konto erstellen' }}</h1>
         <p class="auth-subtitle">
           {{

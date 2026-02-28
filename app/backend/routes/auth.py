@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
 
 from auth.auth_utils import (
+    fetch_auth_user,
     get_db,
     get_current_user,
     request_auth_token,
@@ -23,12 +24,9 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
     try:
         token_payload = request_auth_token(user.username, user.password, "register")
+        token_data = fetch_auth_user(token_payload["access_token"])
         db_user = get_current_user(
-            token_data={
-                "username": user.username,
-                "auth_user_id": _decode_token_user_id(token_payload["access_token"]),
-                "token": token_payload["access_token"],
-            },
+            token_data=token_data,
             db=db,
         )
         APP_LOGGER.info(
@@ -55,12 +53,9 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
 
     try:
         token_payload = request_auth_token(user.username, user.password, "login")
+        token_data = fetch_auth_user(token_payload["access_token"])
         db_user = get_current_user(
-            token_data={
-                "username": user.username,
-                "auth_user_id": _decode_token_user_id(token_payload["access_token"]),
-                "token": token_payload["access_token"],
-            },
+            token_data=token_data,
             db=db,
         )
         APP_LOGGER.info(
@@ -123,13 +118,3 @@ def search_users(
 
     query = query.order_by(func.lower(User.username).asc(), User.id.asc())
     return query.limit(limit).all()
-
-
-def _decode_token_user_id(access_token: str) -> int:
-    from auth.auth_utils import verify_token
-    from fastapi.security import HTTPAuthorizationCredentials
-
-    token_data = verify_token(
-        HTTPAuthorizationCredentials(scheme="Bearer", credentials=access_token)
-    )
-    return int(token_data["auth_user_id"])
