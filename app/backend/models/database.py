@@ -52,7 +52,6 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     auth_user_id = Column(Integer, unique=True, nullable=True, index=True)
     username = Column(String, unique=True, nullable=False, index=True)
-    password_hash = Column(String, nullable=True)
 
     # Relationship with votes
     votes = relationship("Vote", back_populates="user")

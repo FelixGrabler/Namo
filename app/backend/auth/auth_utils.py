@@ -125,7 +125,10 @@ def get_current_user(
         db.refresh(fallback_user)
         return fallback_user
 
-    new_user = User(auth_user_id=auth_user_id, username=username, password_hash=None)
+    new_user = User(
+        auth_user_id=auth_user_id,
+        username=username,
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
