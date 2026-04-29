@@ -73,7 +73,7 @@
       </button>
       <NameCard :name="selectedName" :loading="infoLoading" />
 
-      <div class="fixed bottom-8 left-0 right-0 z-[60]">
+      <div class="search-vote-buttons">
         <VoteButtons
           :canUndo="false"
           :disabled="selectedNameVoted"
@@ -240,6 +240,14 @@ watch(
 </script>
 
 <style scoped>
+.search-vote-buttons {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 2rem;
+  z-index: 60;
+}
+
 .account-prompt-overlay {
   position: fixed;
   inset: 0;

@@ -9,6 +9,8 @@
     </main>
 
     <MobileNavigation v-if="showNavigation && isMobile" />
+
+    <div class="version-badge">v2026.04.29</div>
   </div>
 </template>
 
@@ -47,6 +49,20 @@ const mainContentClasses = computed(() => ({
 #app {
   min-height: 100vh;
   font-family: Arial, sans-serif;
+}
+
+.version-badge {
+  position: fixed;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 2000;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.78);
+  color: white;
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 0.32rem 0.48rem;
+  pointer-events: none;
 }
 
 .main-content {
