@@ -10,19 +10,16 @@ export const setupAxiosInterceptors = () => {
       return response
     },
     (error: AxiosError) => {
-      // Handle 401 Unauthorized errors
       if (error.response?.status === 401) {
-        // Get the user store
         const userStore = useUserStore()
+        const hadSession = userStore.isAuthenticated
 
-        // Logout the user (clears token and localStorage)
         userStore.logout()
 
-        // Redirect to login page
-        router.push('/login')
-
-        // Optional: Show a notification to the user
-        console.warn('Session expired. Please log in again.')
+        if (hadSession && router.currentRoute.value.name !== 'Login') {
+          router.push('/login')
+          console.warn('Session expired. Please log in again.')
+        }
       }
 
       // Re-throw the error so it can still be handled by the calling code if needed
