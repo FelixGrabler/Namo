@@ -5,7 +5,7 @@ from typing import List, Optional
 import random
 import re
 
-from auth.auth_utils import get_db, get_current_user, get_optional_current_user
+from auth.auth_utils import get_db, get_optional_current_user
 from models.database import Name, User, Vote
 from schemas.schemas import NameResponse, NameCreate, NameInfoResponse, RandomNamesRequest
 from utils.wikionary_fetcher import extract_name_info
@@ -205,7 +205,7 @@ def search_names(
     after_id: Optional[int] = None,
     source: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Search names by substring with simple keyset pagination."""
     query = db.query(Name)
@@ -339,7 +339,7 @@ def get_name_info(
 @router.get("/wordle/random", response_model=dict)
 def get_random_wordle_name(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Return a random 5-letter A-Za-z name for Wordle."""
     eligible = (
@@ -366,7 +366,7 @@ def get_random_wordle_name(
 def validate_wordle_name(
     name: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Validate a Wordle guess against available 5-letter names."""
     if not re.match(r"^[A-Za-z]{5}$", name):

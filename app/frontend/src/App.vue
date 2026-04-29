@@ -10,7 +10,7 @@
 
     <MobileNavigation v-if="showNavigation && isMobile" />
 
-    <div class="version-badge">v2026.04.29</div>
+    <div class="version-badge">v2026.04.29-2</div>
   </div>
 </template>
 
@@ -78,7 +78,7 @@ const mainContentClasses = computed(() => ({
 }
 
 .main-content.with-topbar {
-  padding-top: 1rem;
+  padding-top: 0;
 }
 
 @media (max-width: 768px) {
@@ -91,7 +91,7 @@ const mainContentClasses = computed(() => ({
   }
 
   .main-content.with-topbar {
-    padding-top: 0.5rem;
+    padding-top: 0;
   }
 }
 </style>

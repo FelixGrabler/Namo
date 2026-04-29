@@ -70,21 +70,27 @@ const handleVote = (vote: boolean) => {
   if (!currentName.value) return
 
   const selectedName = currentName.value
-  nameBuffer.removeCurrentName()
-  nameBuffer.ensureBuffer()
   const votePayload = { name_id: selectedName.id, vote }
+
+  nameBuffer.recordVotedName(selectedName.id)
 
   if (userStore.isAuthenticated) {
     void sendVote(votePayload)
   } else {
     localVotesStore.addVote(votePayload)
   }
+
+  nameBuffer.removeCurrentName()
+  nameBuffer.ensureBuffer()
 }
 
 const handleUndo = () => {
   console.log('handleUndo')
-  if (!userStore.isAuthenticated && nameBuffer.previousName) {
-    localVotesStore.removeVote(nameBuffer.previousName.id)
+  if (nameBuffer.previousName) {
+    nameBuffer.forgetVotedName(nameBuffer.previousName.id)
+    if (!userStore.isAuthenticated) {
+      localVotesStore.removeVote(nameBuffer.previousName.id)
+    }
   }
   nameBuffer.undoLastRemoval()
 }

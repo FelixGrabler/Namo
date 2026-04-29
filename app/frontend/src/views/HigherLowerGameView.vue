@@ -31,7 +31,12 @@
 
       <div v-else class="space-y-6">
         <div class="grid gap-6 lg:grid-cols-2">
-          <div class="rounded-3xl p-6 text-center shadow-sm border" :class="leftCardClasses">
+          <button
+            class="name-choice-card rounded-3xl p-6 text-center shadow-sm border"
+            :class="leftCardClasses"
+            @click="makeGuess('left')"
+            :disabled="isLocked"
+          >
             <p class="text-xs uppercase tracking-[0.2em] text-slate-600">Links</p>
             <h2 class="text-3xl font-bold text-slate-900 mt-2">{{ leftName?.name }}</h2>
             <p class="text-xs text-slate-500 mt-1">{{ leftName?.source }}</p>
@@ -39,9 +44,14 @@
               <span v-if="revealLeft">{{ displayCounts.left }} Nennungen</span>
               <span v-else class="text-slate-500">?</span>
             </div>
-          </div>
+          </button>
 
-          <div class="rounded-3xl p-6 text-center shadow-sm border" :class="rightCardClasses">
+          <button
+            class="name-choice-card rounded-3xl p-6 text-center shadow-sm border"
+            :class="rightCardClasses"
+            @click="makeGuess('right')"
+            :disabled="isLocked"
+          >
             <p class="text-xs uppercase tracking-[0.2em] text-slate-600">Rechts</p>
             <h2 class="text-3xl font-bold text-slate-900 mt-2">{{ rightName?.name }}</h2>
             <p class="text-xs text-slate-500 mt-1">{{ rightName?.source }}</p>
@@ -49,27 +59,7 @@
               <span v-if="revealRight">{{ displayCounts.right }} Nennungen</span>
               <span v-else class="text-slate-500">?</span>
             </div>
-          </div>
-        </div>
-
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 text-center">
-          <p class="text-slate-700 mb-4">Ist der rechte Name höher oder niedriger als links?</p>
-          <div class="flex flex-wrap justify-center gap-4">
-            <button
-              class="rounded-full bg-emerald-500 px-6 py-3 text-white font-semibold shadow hover:bg-emerald-600 disabled:opacity-50"
-              @click="makeGuess('higher')"
-              :disabled="isLocked"
-            >
-              Higher
-            </button>
-            <button
-              class="rounded-full bg-amber-500 px-6 py-3 text-white font-semibold shadow hover:bg-amber-600 disabled:opacity-50"
-              @click="makeGuess('lower')"
-              :disabled="isLocked"
-            >
-              Lower
-            </button>
-          </div>
+          </button>
         </div>
       </div>
     </div>
@@ -121,18 +111,26 @@ const rightCardClasses = computed(() => ({
   'bg-white border-slate-200': !rightName.value?.gender
 }))
 
-const animateCount = (side: 'left' | 'right', target: number) => {
-  const startTime = performance.now()
-  const duration = 700
+const delay = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms))
 
-  const tick = (now: number) => {
-    const progress = Math.min((now - startTime) / duration, 1)
-    displayCounts[side] = Math.floor(progress * target)
-    if (progress < 1) {
-      requestAnimationFrame(tick)
+const animateCount = (side: 'left' | 'right', target: number) => {
+  return new Promise<void>(resolve => {
+    const startValue = displayCounts[side]
+    const startTime = performance.now()
+    const duration = 700
+
+    const tick = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1)
+      displayCounts[side] = Math.floor(startValue + progress * (target - startValue))
+      if (progress < 1) {
+        requestAnimationFrame(tick)
+      } else {
+        displayCounts[side] = target
+        resolve()
+      }
     }
-  }
-  requestAnimationFrame(tick)
+    requestAnimationFrame(tick)
+  })
 }
 
 const fetchRandomName = async (excludeId?: number) => {
@@ -169,7 +167,7 @@ const loadInitial = async () => {
   }
 }
 
-const makeGuess = async (choice: 'higher' | 'lower') => {
+const makeGuess = async (choice: 'left' | 'right') => {
   if (!leftName.value || !rightName.value) return
 
   isLocked.value = true
@@ -178,12 +176,16 @@ const makeGuess = async (choice: 'higher' | 'lower') => {
 
   const leftCount = leftName.value.count ?? 0
   const rightCount = rightName.value.count ?? 0
+  const correctChoice = rightCount > leftCount ? 'right' : 'left'
+  const correct = choice === correctChoice
+  const winningName = correctChoice === 'right' ? rightName.value : leftName.value
+  const nextNamePromise = correct ? fetchRandomName(winningName.id) : Promise.resolve(null)
 
-  animateCount('left', leftCount)
-  animateCount('right', rightCount)
-
-  const isHigher = rightCount > leftCount
-  const correct = (choice === 'higher' && isHigher) || (choice === 'lower' && !isHigher)
+  await Promise.all([
+    animateCount('left', leftCount),
+    animateCount('right', rightCount)
+  ])
+  await delay(500)
 
   if (!correct) {
     statusMessage.value = 'Leider falsch!'
@@ -195,18 +197,17 @@ const makeGuess = async (choice: 'higher' | 'lower') => {
   streak.value += 1
   statusMessage.value = 'Richtig!'
 
-  setTimeout(async () => {
-    leftName.value = rightName.value
-    revealLeft.value = true
-    displayCounts.left = rightCount
+  const next = await nextNamePromise
 
-    const next = await fetchRandomName(rightName.value?.id)
-    rightName.value = next ?? null
-    revealRight.value = false
-    displayCounts.right = 0
-    statusMessage.value = ''
-    isLocked.value = false
-  }, 900)
+  leftName.value = winningName
+  revealLeft.value = true
+  displayCounts.left = winningName.count ?? 0
+
+  rightName.value = next ?? null
+  revealRight.value = false
+  displayCounts.right = 0
+  statusMessage.value = ''
+  isLocked.value = false
 }
 
 const restartGame = async () => {
@@ -218,3 +219,22 @@ const restartGame = async () => {
 
 void loadInitial()
 </script>
+
+<style scoped>
+.name-choice-card {
+  display: block;
+  width: 100%;
+  min-height: 13rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.name-choice-card:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
+}
+
+.name-choice-card:disabled {
+  cursor: default;
+}
+</style>

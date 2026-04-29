@@ -41,7 +41,7 @@
             <button
               class="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
               @click="giveHint"
-              :disabled="gameStatus !== 'playing' || hintUsed"
+              :disabled="gameStatus !== 'playing' || unresolvedHintPositions.length === 0"
             >
               Hinweis
             </button>
@@ -89,10 +89,28 @@ const currentGuess = ref('')
 const targetName = ref('')
 const gameStatus = ref<'playing' | 'won' | 'lost'>('playing')
 const message = ref('')
-const hintUsed = ref(false)
-const hintLetter = ref('')
+const hintPositions = ref<number[]>([])
 
 const targetDisplay = computed(() => targetName.value.toUpperCase())
+const correctPositions = computed(() => {
+  const positions = new Set<number>()
+  for (const guess of guesses.value) {
+    guess.statuses.forEach((status, index) => {
+      if (status === 'correct') {
+        positions.add(index)
+      }
+    })
+  }
+  return positions
+})
+const unresolvedHintPositions = computed(() => {
+  if (!targetName.value) return []
+
+  return targetName.value
+    .split('')
+    .map((_, index) => index)
+    .filter(index => !correctPositions.value.has(index) && !hintPositions.value.includes(index))
+})
 
 const fetchTarget = async () => {
   const response = await nameService.getWordleTarget()
@@ -103,8 +121,7 @@ const resetState = async () => {
   guesses.value = []
   currentGuess.value = ''
   message.value = ''
-  hintUsed.value = false
-  hintLetter.value = ''
+  hintPositions.value = []
   gameStatus.value = 'playing'
   await fetchTarget()
 }
@@ -140,7 +157,11 @@ const evaluateGuess = (guess: string, target: string): CellStatus[] => {
 const submitGuess = async () => {
   if (gameStatus.value !== 'playing') return
 
-  const guess = currentGuess.value.trim().toLowerCase()
+  const rawGuess = currentGuess.value.trim().toLowerCase()
+  const guess = targetName.value
+    .split('')
+    .map((letter, index) => hintPositions.value.includes(index) ? letter : rawGuess[index])
+    .join('')
   message.value = ''
 
   if (!/^[a-zA-Z]{5}$/.test(guess)) {
@@ -169,10 +190,17 @@ const submitGuess = async () => {
 }
 
 const giveHint = () => {
-  if (hintUsed.value || gameStatus.value !== 'playing') return
-  hintLetter.value = targetName.value[0]?.toUpperCase() ?? ''
-  hintUsed.value = true
-  message.value = `Hinweis: Der Name beginnt mit ${hintLetter.value}.`
+  if (gameStatus.value !== 'playing') return
+
+  const [position] = unresolvedHintPositions.value
+  if (position === undefined) {
+    message.value = 'Alle noch offenen Buchstaben sind bereits bekannt.'
+    return
+  }
+
+  hintPositions.value = [...hintPositions.value, position]
+  const letter = targetName.value[position]?.toUpperCase() ?? ''
+  message.value = `Hinweis: Position ${position + 1} ist ${letter}.`
 }
 
 const giveUp = () => {
@@ -186,6 +214,14 @@ const cellLetter = (row: number, col: number) => {
     return guesses.value[row].word[col]?.toUpperCase() ?? ''
   }
   if (row === guesses.value.length) {
+    const hintedLetter = hintPositions.value.includes(col)
+      ? targetName.value[col]?.toUpperCase()
+      : ''
+
+    if (hintedLetter) {
+      return hintedLetter
+    }
+
     return currentGuess.value[col]?.toUpperCase() ?? ''
   }
   return ''
@@ -199,6 +235,9 @@ const cellClass = (row: number, col: number) => {
       'bg-amber-400 text-white border-amber-400': status === 'present',
       'bg-slate-400 text-white border-slate-400': status === 'absent'
     }
+  }
+  if (row === guesses.value.length && hintPositions.value.includes(col)) {
+    return 'bg-emerald-500 text-white border-emerald-500'
   }
   return 'bg-white'
 }

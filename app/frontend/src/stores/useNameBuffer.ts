@@ -3,38 +3,71 @@ import { ref } from 'vue'
 import { useNameService } from '@/api/nameService'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import { useLocalVotesStore } from '@/stores/useLocalVotesStore'
-import { useUserStore } from '@/stores/useUserStore'
 import type { NameResponse } from '@/types'
 
 export const useNameBuffer = defineStore('nameBuffer', () => {
   const buffer = ref<NameResponse[]>([])
   const previousName = ref<NameResponse | null>(null)
+  const locallyExcludedNameIds = ref<number[]>([])
   const BUFFER_MIN = 5
   const BUFFER_TARGET = 10
+  let refillPromise: Promise<void> | null = null
 
-  const ensureBuffer = async () => {
+  const getExcludedNameIds = () => {
+    const localVotesStore = useLocalVotesStore()
+    return Array.from(new Set([
+      ...buffer.value.map(name => name.id),
+      ...locallyExcludedNameIds.value,
+      ...localVotesStore.votedNameIds
+    ]))
+  }
+
+  const refillBuffer = async () => {
     if (buffer.value.length >= BUFFER_MIN) return
 
-    const existingIds = new Set(buffer.value.map(n => n.id))
     const preferencesStore = usePreferencesStore()
-    const localVotesStore = useLocalVotesStore()
-    const userStore = useUserStore()
 
     try {
       const names = await useNameService().getRandomNames(BUFFER_TARGET, {
         sortOrder: preferencesStore.sortOrder,
         genders: preferencesStore.selectedGenders,
-        excludedNameIds: userStore.isAuthenticated ? [] : localVotesStore.votedNameIds
+        excludedNameIds: getExcludedNameIds()
       })
+
       for (const name of names) {
+        const existingIds = new Set(buffer.value.map(n => n.id))
+        const excludedIds = new Set(getExcludedNameIds())
+
         if (!existingIds.has(name.id)) {
+          if (excludedIds.has(name.id)) continue
           buffer.value.push(name)
-          existingIds.add(name.id)
         }
       }
     } catch (e) {
       console.warn('Buffer refill failed', e)
     }
+  }
+
+  const ensureBuffer = async () => {
+    if (buffer.value.length >= BUFFER_MIN) return
+    if (refillPromise) return refillPromise
+
+    refillPromise = refillBuffer()
+      .finally(() => {
+        refillPromise = null
+      })
+
+    return refillPromise
+  }
+
+  const recordVotedName = (nameId: number) => {
+    if (!locallyExcludedNameIds.value.includes(nameId)) {
+      locallyExcludedNameIds.value = [...locallyExcludedNameIds.value, nameId]
+    }
+  }
+
+  const forgetVotedName = (nameId: number) => {
+    locallyExcludedNameIds.value = locallyExcludedNameIds.value.filter(id => id !== nameId)
   }
 
   const removeCurrentName = () => {
@@ -60,12 +93,15 @@ export const useNameBuffer = defineStore('nameBuffer', () => {
   const clearBuffer = () => {
     buffer.value = []
     previousName.value = null
+    refillPromise = null
   }
 
   return {
     buffer,
     previousName,
     ensureBuffer,
+    recordVotedName,
+    forgetVotedName,
     removeCurrentName,
     undoLastRemoval,
     canUndo,
