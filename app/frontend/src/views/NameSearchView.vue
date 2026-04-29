@@ -63,15 +63,25 @@
 
     <div
       v-if="selectedName"
-      class="fixed inset-0 z-50 flex flex-col bg-slate-900/60 backdrop-blur-sm"
+      class="name-detail-overlay"
     >
-      <button
-        class="self-end m-6 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 shadow"
-        @click="closeDetails"
-      >
-        Schliessen
-      </button>
-      <NameCard :name="selectedName" :loading="infoLoading" />
+      <div class="name-detail-header">
+        <div>
+          <p class="name-detail-kicker">Namensinfo</p>
+          <h2 class="name-detail-title">{{ selectedName.name }}</h2>
+        </div>
+        <button
+          class="name-detail-close"
+          @click="closeDetails"
+          aria-label="Schliessen"
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="name-detail-card">
+        <NameCard :name="selectedName" :loading="infoLoading" />
+      </div>
 
       <div class="search-vote-buttons">
         <VoteButtons
@@ -252,18 +262,78 @@ watch(
 </script>
 
 <style scoped>
+.name-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.name-detail-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2120;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 4.75rem;
+  padding: 0.85rem 1.25rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.name-detail-kicker {
+  margin: 0 0 0.15rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.name-detail-title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.name-detail-close {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 999px;
+  background: white;
+  color: #334155;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.name-detail-card {
+  height: 100%;
+  padding-top: 4.75rem;
+}
+
 .search-vote-buttons {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 2rem;
-  z-index: 60;
+  z-index: 2130;
 }
 
 .account-prompt-overlay {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 2140;
   display: flex;
   align-items: center;
   justify-content: center;
