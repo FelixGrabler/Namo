@@ -10,7 +10,7 @@
 
     <MobileNavigation v-if="showNavigation && isMobile" />
 
-    <div class="version-badge">v2026.04.29-2</div>
+    <div class="version-badge">v2026.04.29-3</div>
   </div>
 </template>
 

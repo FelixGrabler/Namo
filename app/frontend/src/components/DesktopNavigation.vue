@@ -213,7 +213,7 @@ const closeMenu = () => {
   background: white;
   box-shadow: 2px 0 8px rgba(0,0,0,0.1);
   transition: left 0.3s ease;
-  z-index: 1000;
+  z-index: 1002;
   overflow-y: auto;
 }
 

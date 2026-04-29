@@ -76,12 +76,12 @@
       <div class="search-vote-buttons">
         <VoteButtons
           :canUndo="false"
-          :disabled="selectedNameVoted"
+          :activeVote="selectedNameVote"
           @like="voteForSelectedName(true)"
           @dislike="voteForSelectedName(false)"
         />
-        <p v-if="selectedNameVoted" class="mt-3 text-center text-sm font-semibold text-white drop-shadow">
-          Bewertung gespeichert
+        <p v-if="selectedNameVote !== null" class="mt-3 text-center text-sm font-semibold text-white drop-shadow">
+          {{ selectedNameVote ? 'Als Like gespeichert' : 'Als Dislike gespeichert' }}
         </p>
       </div>
 
@@ -122,16 +122,22 @@ const loading = ref(false)
 const hasMore = ref(true)
 const selectedName = ref<NameResponse | null>(null)
 const infoLoading = ref(false)
-const submittedSelectedNameIds = ref<number[]>([])
+const submittedSelectedVotes = ref<Record<number, boolean>>({})
 
 let searchTimeout: number | undefined
 
-const selectedNameVoted = computed(() => {
-  if (!selectedName.value) return false
-  return (
-    submittedSelectedNameIds.value.includes(selectedName.value.id) ||
-    (!userStore.isAuthenticated && localVotesStore.votedNameIds.includes(selectedName.value.id))
-  )
+const selectedNameVote = computed(() => {
+  if (!selectedName.value) return null
+
+  const submittedVote = submittedSelectedVotes.value[selectedName.value.id]
+  if (submittedVote !== undefined) return submittedVote
+
+  if (!userStore.isAuthenticated) {
+    const localVote = localVotesStore.votes.find(vote => vote.name_id === selectedName.value?.id)
+    if (localVote) return localVote.vote
+  }
+
+  return null
 })
 
 const showAccountPrompt = computed(() => {
@@ -193,7 +199,7 @@ const closeDetails = () => {
 }
 
 const voteForSelectedName = async (vote: boolean) => {
-  if (!selectedName.value || selectedNameVoted.value) return
+  if (!selectedName.value) return
 
   const votePayload: VoteCreate = {
     name_id: selectedName.value.id,
@@ -202,13 +208,19 @@ const voteForSelectedName = async (vote: boolean) => {
 
   if (!userStore.isAuthenticated) {
     localVotesStore.addVote(votePayload)
-    submittedSelectedNameIds.value = [...submittedSelectedNameIds.value, selectedName.value.id]
+    submittedSelectedVotes.value = {
+      ...submittedSelectedVotes.value,
+      [selectedName.value.id]: vote
+    }
     return
   }
 
   try {
     await voteService.submitVote(votePayload)
-    submittedSelectedNameIds.value = [...submittedSelectedNameIds.value, selectedName.value.id]
+    submittedSelectedVotes.value = {
+      ...submittedSelectedVotes.value,
+      [selectedName.value.id]: vote
+    }
   } catch (err: any) {
     if (err?.response?.status === 401) {
       userStore.logout()
