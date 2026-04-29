@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 
 
@@ -55,6 +55,17 @@ class NameInfoResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class RandomNamesRequest(BaseModel):
+    n: int = 10
+    genders: Optional[str] = None
+    sort_order: str = "random"
+    exclude_voted: bool = True
+    source: Optional[str] = None
+    require_count: bool = False
+    top_n_by_count: Optional[int] = None
+    excluded_name_ids: List[int] = Field(default_factory=list)
 
 
 # Vote schemas

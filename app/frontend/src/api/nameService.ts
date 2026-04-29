@@ -12,6 +12,7 @@ export const useNameService = () => {
       requireCount?: boolean;
       excludeVoted?: boolean;
       topNByCount?: number;
+      excludedNameIds?: number[];
     }
   ): Promise<NameResponse[]> => {
     const params: any = { n }
@@ -40,10 +41,14 @@ export const useNameService = () => {
       params.top_n_by_count = options.topNByCount
     }
 
-    const response = await axios.get('/api/names/random', {
-      params
-    })
-    return response.data ?? []
+    const hasDeviceExclusions = options?.excludedNameIds && options.excludedNameIds.length > 0
+    const response = hasDeviceExclusions
+      ? await axios.post('/api/names/random', {
+          ...params,
+          excluded_name_ids: options.excludedNameIds
+        })
+      : await axios.get('/api/names/random', { params })
+    return Array.isArray(response.data) ? response.data : []
   }
 
   const searchNames = async (

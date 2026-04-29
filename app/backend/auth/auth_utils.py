@@ -19,6 +19,7 @@ ALGORITHM = get_required_env("ALGORITHM", "HS256")
 AUTH_SERVICE_URL = get_required_env("AUTH_SERVICE_URL", "http://shared-auth:8000/api/auth")
 
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def fetch_auth_user(token: str) -> dict[str, Any]:
@@ -104,6 +105,54 @@ def get_current_user(
     token_data: dict = Depends(verify_token), db: Session = Depends(get_db)
 ) -> User:
     """Get current authenticated user."""
+    username = token_data["username"]
+    auth_user_id = token_data["auth_user_id"]
+
+    user = db.query(User).filter(User.auth_user_id == auth_user_id).first()
+    if user is not None:
+        if user.username != username:
+            user.username = username
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+
+    fallback_user = db.query(User).filter(User.username == username).first()
+    if fallback_user is not None:
+        fallback_user.auth_user_id = auth_user_id
+        fallback_user.username = username
+        db.add(fallback_user)
+        db.commit()
+        db.refresh(fallback_user)
+        return fallback_user
+
+    new_user = User(
+        auth_user_id=auth_user_id,
+        username=username,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+def verify_optional_token(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
+):
+    """Return token data when a bearer token is present, otherwise allow anonymous access."""
+    if credentials is None:
+        return None
+    return verify_token(credentials)
+
+
+def get_optional_current_user(
+    token_data: Optional[dict] = Depends(verify_optional_token),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Resolve the current user when authenticated, otherwise return None."""
+    if token_data is None:
+        return None
+
     username = token_data["username"]
     auth_user_id = token_data["auth_user_id"]
 

@@ -17,14 +17,26 @@
     <div v-if="!currentName" class="flex items-center justify-center min-h-screen text-center text-gray-500 bg-gray-50">
       Loading...
     </div>
+
+    <div v-if="showAccountPrompt" class="account-prompt-overlay" @click="ignoreAccountPrompt">
+      <div class="account-prompt" @click.stop>
+        <h2>Votes im Konto speichern?</h2>
+        <p>Mit einem Login bleiben deine Bewertungen dauerhaft erhalten.</p>
+        <div class="account-prompt-actions">
+          <button class="login-action" @click="goToLogin">Login</button>
+          <button class="ignore-action" @click="ignoreAccountPrompt">Ignorieren</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
 import { useNameBuffer } from '@/stores/useNameBuffer'
+import { useLocalVotesStore } from '@/stores/useLocalVotesStore'
 import { useVoteService } from '@/api/voteService'
 import type { VoteCreate } from '@/types'
 
@@ -34,14 +46,14 @@ import VoteButtons from '@/components/VoteButtons.vue'
 const router = useRouter()
 const userStore = useUserStore()
 const nameBuffer = useNameBuffer()
+const localVotesStore = useLocalVotesStore()
 
 const currentName = computed(() => nameBuffer.buffer[0] || null)
+const showAccountPrompt = computed(() => {
+  return !userStore.isAuthenticated && localVotesStore.shouldPromptForAccount
+})
 
 onMounted(async () => {
-  if (!userStore.isAuthenticated) {
-    router.push('/login')
-    return
-  }
   await nameBuffer.ensureBuffer()
 
   // Add global keyboard listener
@@ -60,11 +72,20 @@ const handleVote = (vote: boolean) => {
   const selectedName = currentName.value
   nameBuffer.removeCurrentName()
   nameBuffer.ensureBuffer()
-  void sendVote({ name_id: selectedName.id, vote })
+  const votePayload = { name_id: selectedName.id, vote }
+
+  if (userStore.isAuthenticated) {
+    void sendVote(votePayload)
+  } else {
+    localVotesStore.addVote(votePayload)
+  }
 }
 
 const handleUndo = () => {
   console.log('handleUndo')
+  if (!userStore.isAuthenticated && nameBuffer.previousName) {
+    localVotesStore.removeVote(nameBuffer.previousName.id)
+  }
   nameBuffer.undoLastRemoval()
 }
 
@@ -100,6 +121,14 @@ const sendVote = async (vote: VoteCreate) => {
     }
   }
 }
+
+const goToLogin = () => {
+  router.push('/login')
+}
+
+const ignoreAccountPrompt = () => {
+  localVotesStore.dismissAccountPrompt()
+}
 </script>
 
 <style scoped>
@@ -123,5 +152,62 @@ const sendVote = async (vote: VoteCreate) => {
   .vote-buttons-container {
     bottom: 0.75rem; /* Much closer to bottom */
   }
+}
+
+.account-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.account-prompt {
+  width: min(24rem, 100%);
+  border-radius: 8px;
+  background: white;
+  padding: 1.5rem;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
+
+.account-prompt h2 {
+  margin: 0 0 0.5rem;
+  color: #111827;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.account-prompt p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.account-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.account-prompt-actions button {
+  border: none;
+  border-radius: 6px;
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-action {
+  background: #007bff;
+  color: white;
+}
+
+.ignore-action {
+  background: #f3f4f6;
+  color: #374151;
 }
 </style>

@@ -55,7 +55,9 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/useUserStore'
+import { useLocalVotesStore } from '@/stores/useLocalVotesStore'
 import { useAuthService } from '@/api/authService'
+import { useVoteService } from '@/api/voteService'
 
 const username = ref('')
 const password = ref('')
@@ -64,7 +66,9 @@ const isLoading = ref(false)
 const isLoginMode = ref(false)
 const router = useRouter()
 const userStore = useUserStore()
+const localVotesStore = useLocalVotesStore()
 const authService = useAuthService()
+const voteService = useVoteService()
 
 const toggleMode = () => {
   isLoginMode.value = !isLoginMode.value
@@ -86,6 +90,7 @@ const handleSubmit = async () => {
       : await authService.register(credentials)
 
     userStore.setToken(response.access_token, username.value)
+    await syncLocalVotes()
     router.push('/vote')
   } catch (err: any) {
     const errorMessage = err?.response?.data?.detail
@@ -97,6 +102,18 @@ const handleSubmit = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+const syncLocalVotes = async () => {
+  if (localVotesStore.votes.length === 0) return
+
+  await Promise.all(
+    localVotesStore.votes.map(vote => voteService.submitVote({
+      name_id: vote.name_id,
+      vote: vote.vote
+    }))
+  )
+  localVotesStore.clearVotes()
 }
 </script>
 

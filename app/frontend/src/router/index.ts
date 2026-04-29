@@ -30,10 +30,11 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
-  const isAuthenticated = userStore.token !== null
-  if (to.name !== 'Login' && !isAuthenticated) {
+  const publicRoutes = new Set(['Login', 'Vote', 'Account', 'NameSearch', 'Gaming', 'HigherLower', 'Wordle', 'Preferences'])
+
+  if (!publicRoutes.has(String(to.name)) && !userStore.isAuthenticated) {
     next({ name: 'Login' })
   } else {
     next()

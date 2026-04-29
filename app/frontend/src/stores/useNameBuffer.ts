@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useNameService } from '@/api/nameService'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
+import { useLocalVotesStore } from '@/stores/useLocalVotesStore'
+import { useUserStore } from '@/stores/useUserStore'
 import type { NameResponse } from '@/types'
 
 export const useNameBuffer = defineStore('nameBuffer', () => {
@@ -15,11 +17,14 @@ export const useNameBuffer = defineStore('nameBuffer', () => {
 
     const existingIds = new Set(buffer.value.map(n => n.id))
     const preferencesStore = usePreferencesStore()
+    const localVotesStore = useLocalVotesStore()
+    const userStore = useUserStore()
 
     try {
       const names = await useNameService().getRandomNames(BUFFER_TARGET, {
         sortOrder: preferencesStore.sortOrder,
-        genders: preferencesStore.selectedGenders
+        genders: preferencesStore.selectedGenders,
+        excludedNameIds: userStore.isAuthenticated ? [] : localVotesStore.votedNameIds
       })
       for (const name of names) {
         if (!existingIds.has(name.id)) {

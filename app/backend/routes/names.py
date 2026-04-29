@@ -5,41 +5,37 @@ from typing import List, Optional
 import random
 import re
 
-from auth.auth_utils import get_db, get_current_user
+from auth.auth_utils import get_db, get_current_user, get_optional_current_user
 from models.database import Name, User, Vote
-from schemas.schemas import NameResponse, NameCreate, NameInfoResponse
+from schemas.schemas import NameResponse, NameCreate, NameInfoResponse, RandomNamesRequest
 from utils.wikionary_fetcher import extract_name_info
 from utils.error_utils import handle_error, log_info, log_warning
 
 router = APIRouter()
 
 
-# GET /names/random?n=10&genders=male,female&sort_order=random&exclude_voted=true
-@router.get("/random", response_model=List[NameResponse])
-def get_random_names(
-    n: int = Query(1, ge=1, le=100),
-    genders: Optional[str] = None,
-    sort_order: Optional[str] = Query("random"),
-    exclude_voted: bool = Query(True),
-    source: Optional[str] = None,
-    require_count: bool = Query(False),
-    top_n_by_count: Optional[int] = Query(None, ge=1, le=1000),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get up to n weighted random names the user hasn't voted on yet."""
-    log_info(
-        f"Requesting {n} random names, genders={genders}, sort_order={sort_order}, user={current_user.username}",
-        "get_random_names",
-    )
-
+def select_random_names(
+    db: Session,
+    n: int,
+    genders: Optional[str],
+    sort_order: Optional[str],
+    exclude_voted: bool,
+    source: Optional[str],
+    require_count: bool,
+    top_n_by_count: Optional[int],
+    excluded_ids: List[int],
+    current_user: Optional[User],
+) -> List[Name]:
     # Base query
     query = db.query(Name)
 
     # Exclude names the user has voted on if exclude_voted is True
-    if exclude_voted:
+    if exclude_voted and current_user:
         voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
         query = query.filter(~Name.id.in_(voted_subq))
+
+    if excluded_ids:
+        query = query.filter(~Name.id.in_(excluded_ids))
 
     if source:
         query = query.filter(Name.source.ilike(f"%{source}%"))
@@ -101,7 +97,102 @@ def get_random_names(
                     break
             selected = unique_selected
 
+    return selected
+
+
+# GET /names/random?n=10&genders=male,female&sort_order=random&exclude_voted=true
+@router.get("/random", response_model=List[NameResponse])
+def get_random_names(
+    n: int = Query(1, ge=1, le=100),
+    genders: Optional[str] = None,
+    sort_order: Optional[str] = Query("random"),
+    exclude_voted: bool = Query(True),
+    source: Optional[str] = None,
+    require_count: bool = Query(False),
+    top_n_by_count: Optional[int] = Query(None, ge=1, le=1000),
+    excluded_name_ids: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """Get up to n weighted random names the user hasn't voted on yet."""
+    username = current_user.username if current_user else "anonymous"
+    log_info(
+        f"Requesting {n} random names, genders={genders}, sort_order={sort_order}, user={username}",
+        "get_random_names",
+    )
+
+    excluded_ids = []
+    if excluded_name_ids:
+        try:
+            excluded_ids = [
+                int(name_id)
+                for name_id in excluded_name_ids.split(",")
+                if name_id.strip()
+            ]
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="excluded_name_ids must be a comma-separated list of integers",
+            )
+
+    selected = select_random_names(
+        db=db,
+        n=n,
+        genders=genders,
+        sort_order=sort_order,
+        exclude_voted=exclude_voted,
+        source=source,
+        require_count=require_count,
+        top_n_by_count=top_n_by_count,
+        excluded_ids=excluded_ids,
+        current_user=current_user,
+    )
+
     log_info(f"Returning {len(selected)} random names", "get_random_names")
+    return selected
+
+
+@router.post("/random", response_model=List[NameResponse])
+def post_random_names(
+    request: RandomNamesRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """Get random names with exclusions in the request body for anonymous device votes."""
+    username = current_user.username if current_user else "anonymous"
+    log_info(
+        f"Requesting {request.n} random names, genders={request.genders}, sort_order={request.sort_order}, user={username}",
+        "post_random_names",
+    )
+
+    if request.n < 1 or request.n > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="n must be between 1 and 100",
+        )
+
+    if request.top_n_by_count is not None and (
+        request.top_n_by_count < 1 or request.top_n_by_count > 1000
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="top_n_by_count must be between 1 and 1000",
+        )
+
+    selected = select_random_names(
+        db=db,
+        n=request.n,
+        genders=request.genders,
+        sort_order=request.sort_order,
+        exclude_voted=request.exclude_voted,
+        source=request.source,
+        require_count=request.require_count,
+        top_n_by_count=request.top_n_by_count,
+        excluded_ids=request.excluded_name_ids,
+        current_user=current_user,
+    )
+
+    log_info(f"Returning {len(selected)} random names", "post_random_names")
     return selected
 
 
@@ -146,8 +237,9 @@ def get_ordered_names(
     limit: int = Query(1, ge=1, le=100),
     source: Optional[str] = None,
     gender: Optional[str] = None,
+    excluded_name_ids: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """
     Return names ordered by count (popular/unpopular), filtered by source/gender,
@@ -159,8 +251,27 @@ def get_ordered_names(
     asc = direction == "unpopular"
 
     # Base query: exclude already voted names
-    voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
-    query = db.query(Name).filter(~Name.id.in_(voted_subq))
+    query = db.query(Name)
+
+    if current_user:
+        voted_subq = db.query(Vote.name_id).filter(Vote.user_id == current_user.id)
+        query = query.filter(~Name.id.in_(voted_subq))
+
+    if excluded_name_ids:
+        try:
+            excluded_ids = [
+                int(name_id)
+                for name_id in excluded_name_ids.split(",")
+                if name_id.strip()
+            ]
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="excluded_name_ids must be a comma-separated list of integers",
+            )
+
+        if excluded_ids:
+            query = query.filter(~Name.id.in_(excluded_ids))
 
     # Apply filters
     if source:

@@ -72,17 +72,49 @@
         Schliessen
       </button>
       <NameCard :name="selectedName" :loading="infoLoading" />
+
+      <div class="fixed bottom-8 left-0 right-0 z-[60]">
+        <VoteButtons
+          :canUndo="false"
+          :disabled="selectedNameVoted"
+          @like="voteForSelectedName(true)"
+          @dislike="voteForSelectedName(false)"
+        />
+        <p v-if="selectedNameVoted" class="mt-3 text-center text-sm font-semibold text-white drop-shadow">
+          Bewertung gespeichert
+        </p>
+      </div>
+
+      <div v-if="showAccountPrompt" class="account-prompt-overlay" @click="ignoreAccountPrompt">
+        <div class="account-prompt" @click.stop>
+          <h2>Votes im Konto speichern?</h2>
+          <p>Mit einem Login bleiben deine Bewertungen dauerhaft erhalten.</p>
+          <div class="account-prompt-actions">
+            <button class="login-action" @click="goToLogin">Login</button>
+            <button class="ignore-action" @click="ignoreAccountPrompt">Ignorieren</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { NameResponse } from '@/types'
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import type { NameResponse, VoteCreate } from '@/types'
 import { useNameService } from '@/api/nameService'
+import { useVoteService } from '@/api/voteService'
+import { useUserStore } from '@/stores/useUserStore'
+import { useLocalVotesStore } from '@/stores/useLocalVotesStore'
 import NameCard from '@/components/NameCard.vue'
+import VoteButtons from '@/components/VoteButtons.vue'
 
+const router = useRouter()
 const nameService = useNameService()
+const voteService = useVoteService()
+const userStore = useUserStore()
+const localVotesStore = useLocalVotesStore()
 
 const query = ref('')
 const names = ref<NameResponse[]>([])
@@ -90,8 +122,21 @@ const loading = ref(false)
 const hasMore = ref(true)
 const selectedName = ref<NameResponse | null>(null)
 const infoLoading = ref(false)
+const submittedSelectedNameIds = ref<number[]>([])
 
 let searchTimeout: number | undefined
+
+const selectedNameVoted = computed(() => {
+  if (!selectedName.value) return false
+  return (
+    submittedSelectedNameIds.value.includes(selectedName.value.id) ||
+    (!userStore.isAuthenticated && localVotesStore.votedNameIds.includes(selectedName.value.id))
+  )
+})
+
+const showAccountPrompt = computed(() => {
+  return !userStore.isAuthenticated && localVotesStore.shouldPromptForAccount
+})
 
 const fetchNames = async (reset = false) => {
   if (loading.value) return
@@ -147,6 +192,39 @@ const closeDetails = () => {
   selectedName.value = null
 }
 
+const voteForSelectedName = async (vote: boolean) => {
+  if (!selectedName.value || selectedNameVoted.value) return
+
+  const votePayload: VoteCreate = {
+    name_id: selectedName.value.id,
+    vote
+  }
+
+  if (!userStore.isAuthenticated) {
+    localVotesStore.addVote(votePayload)
+    submittedSelectedNameIds.value = [...submittedSelectedNameIds.value, selectedName.value.id]
+    return
+  }
+
+  try {
+    await voteService.submitVote(votePayload)
+    submittedSelectedNameIds.value = [...submittedSelectedNameIds.value, selectedName.value.id]
+  } catch (err: any) {
+    if (err?.response?.status === 401) {
+      userStore.logout()
+      router.push('/login')
+    }
+  }
+}
+
+const goToLogin = () => {
+  router.push('/login')
+}
+
+const ignoreAccountPrompt = () => {
+  localVotesStore.dismissAccountPrompt()
+}
+
 watch(
   query,
   () => {
@@ -160,3 +238,62 @@ watch(
   { immediate: true }
 )
 </script>
+
+<style scoped>
+.account-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.account-prompt {
+  width: min(24rem, 100%);
+  border-radius: 8px;
+  background: white;
+  padding: 1.5rem;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
+
+.account-prompt h2 {
+  margin: 0 0 0.5rem;
+  color: #111827;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.account-prompt p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.account-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.account-prompt-actions button {
+  border: none;
+  border-radius: 6px;
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-action {
+  background: #007bff;
+  color: white;
+}
+
+.ignore-action {
+  background: #f3f4f6;
+  color: #374151;
+}
+</style>

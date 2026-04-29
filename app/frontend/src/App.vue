@@ -1,32 +1,25 @@
 <template>
   <div id="app">
-    <!-- Desktop Navigation -->
-    <DesktopNavigation v-if="isAuthenticated && showNavigation" />
+    <DesktopNavigation v-if="showNavigation" />
 
-    <!-- New Top Bar -->
-    <TopBar v-if="isAuthenticated && showNavigation" :is-mobile="isMobile" />
+    <TopBar v-if="showNavigation" :is-mobile="isMobile" />
 
     <main class="main-content" :class="mainContentClasses">
       <router-view />
     </main>
 
-    <!-- Mobile Navigation -->
-    <MobileNavigation v-if="isAuthenticated && showNavigation && isMobile" />
+    <MobileNavigation v-if="showNavigation && isMobile" />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/useUserStore'
+import { useRoute } from 'vue-router'
 import MobileNavigation from '@/components/MobileNavigation.vue'
 import DesktopNavigation from '@/components/DesktopNavigation.vue'
 import TopBar from '@/components/TopBar.vue'
 
 const route = useRoute()
-const router = useRouter()
-const userStore = useUserStore()
-
 const isMobile = ref(false)
 
 const checkMobile = () => {
@@ -42,18 +35,12 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
 })
 
-const isAuthenticated = computed(() => userStore.token !== null)
 const showNavigation = computed(() => route.name !== 'Login')
 const mainContentClasses = computed(() => ({
   'no-padding': route.name === 'Vote',
-  'mobile-padding': isMobile.value && isAuthenticated.value,
-  'with-topbar': isAuthenticated.value && showNavigation.value
+  'mobile-padding': isMobile.value && showNavigation.value,
+  'with-topbar': showNavigation.value
 }))
-
-const logout = () => {
-  userStore.logout()
-  router.push('/login')
-}
 </script>
 
 <style scoped>
@@ -71,14 +58,13 @@ const logout = () => {
 }
 
 .main-content.mobile-padding {
-  padding-bottom: 5rem; /* Space for mobile navigation */
+  padding-bottom: 5rem;
 }
 
 .main-content.with-topbar {
-  padding-top: 1rem; /* Space for top bar */
+  padding-top: 1rem;
 }
 
-/* Mobile styles */
 @media (max-width: 768px) {
   .main-content {
     padding: 1rem;

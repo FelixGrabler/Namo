@@ -2,11 +2,26 @@
   <div class="account-view">
     <div class="container">
       <div class="user-info">
-        <h1 class="welcome">Willkommen, {{ userStore.username }}!</h1>
+        <h1 class="welcome">
+          {{ userStore.isAuthenticated ? `Willkommen, ${userStore.username}!` : 'Persönliches' }}
+        </h1>
       </div>
 
       <div class="menu-items">
-        <button @click="logout" class="menu-item logout-item">
+        <button v-if="!userStore.isAuthenticated" @click="login" class="menu-item login-item">
+          <div class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M10,17V14H3V10H10V7L15,12L10,17M12,2A2,2 0 0,1 14,4V8H12V4H19V20H12V16H14V20H19V4H14A2,2 0 0,1 12,2Z"/>
+            </svg>
+          </div>
+          <div class="menu-content">
+            <h3>Login</h3>
+            <p>Votes dauerhaft in deinem Konto speichern</p>
+          </div>
+          <div class="menu-arrow">›</div>
+        </button>
+
+        <button v-else @click="logout" class="menu-item logout-item">
           <div class="menu-icon">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z"/>
@@ -32,6 +47,10 @@ const router = useRouter()
 
 const logout = () => {
   userStore.logout()
+  router.push('/vote')
+}
+
+const login = () => {
   router.push('/login')
 }
 </script>
@@ -126,6 +145,10 @@ const logout = () => {
 
 .logout-item:hover .menu-icon {
   color: #dc3545;
+}
+
+.login-item:hover .menu-icon {
+  color: #198754;
 }
 
 @media (max-width: 768px) {
